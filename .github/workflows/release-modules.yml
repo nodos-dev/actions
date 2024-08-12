@@ -38,11 +38,6 @@ env:
   RUST_BACKTRACE: 1
   NOSMAN_EXECUTABLE_NAME: "nosman.exe"
 
-# TODO: Support parallel runs
-concurrency:
-  group: single # For now, allow 1 run at a time.
-  cancel-in-progress: false # Queue up runs if one is already in progress.
-
 jobs:
   build:
     name: Build & Publish (${{ inputs.ref_name }} - ${{ inputs.build_number }})
