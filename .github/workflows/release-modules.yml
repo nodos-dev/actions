@@ -26,8 +26,8 @@ on:
       build_number:
         description: 'Build number'
         required: false
-        default: 0
-        type: number
+        default: '0'
+        type: string
 
 env:
   GH_USERNAME: "nodos-bot"
