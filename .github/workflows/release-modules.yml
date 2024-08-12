@@ -36,7 +36,7 @@ env:
   DIST_TARGET_DIR: "D:/Builds/Nodos-Modules"
   SYSTEM_NOSMAN_PATH: "C:/Tools/nosman.exe"
   RUST_BACKTRACE: 1
-  NOSMAN_EXECUTABLE_NAME: "nosman.exe"
+  NOSMAN_EXECUTABLE_NAME: "nodos.exe"
 
 jobs:
   build:
