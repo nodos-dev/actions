@@ -124,7 +124,7 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
       - name: Release (Changed)
-        if: ${{ inputs.build_all == null || inputs.build_all == 'false'}}
+        if: ${{ inputs.build_all == null || inputs.build_all == false }}
         shell: pwsh
         run: |
           $LastBuildTag = git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/build.${{ inputs.ref_name }}-*' | Select-Object -First 1
@@ -133,7 +133,7 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
       
       - name: Release (All)
-        if: ${{ inputs.build_all == 'true' }}
+        if: ${{ inputs.build_all }}
         shell: pwsh
         run: |
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}"
