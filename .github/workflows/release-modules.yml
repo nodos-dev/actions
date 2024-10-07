@@ -33,15 +33,28 @@ jobs:
   build:
     name: Build & Publish (${{ inputs.ref_name }} - ${{ inputs.build_number }})
     runs-on: [self-hosted, Windows]
+    strategy:
+      matrix:
+        runner: [[self-hosted, Windows, "${{ inputs.ref_name }}"], [self-hosted, Linux, "${{ inputs.ref_name }}"]]
+
     env:
       GH_USERNAME: "nodos-bot"
       GIT_EMAIL: "bot@nodos.dev"
       GH_TOKEN: ${{ secrets.CI_TOKEN }}
-      DIST_TARGET_DIR: "D:/Builds/Nodos-Modules"
-      SYSTEM_NOSMAN_PATH: "C:/Tools/nosman.exe"
       RUST_BACKTRACE: 1
-      NOSMAN_EXECUTABLE_NAME: "nodos.exe"
+
     steps:
+      - name: Setup Environment Variables
+        run: |
+          if [ "${{ matrix.runner[1] }}" == "Linux" ]; then
+            echo "SYSTEM_NOSMAN_PATH=/usr/bin/nodos" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=./nodos" >> $GITHUB_ENV
+          else
+            echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=./nodos.exe" >> $GITHUB_ENV
+          fi
+        shell: bash
+
       - name: Update Git Credentials
         continue-on-error: true
         shell: bash
