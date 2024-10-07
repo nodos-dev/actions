@@ -48,11 +48,11 @@ jobs:
         run: |
           if [ "${{ matrix.runner[1] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=/usr/bin/nodos" >> $GITHUB_ENV
-            echo "NOSMAN_EXECUTABLE_NAME=./nodos" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
             echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
           else
             echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
-            echo "NOSMAN_EXECUTABLE_NAME=./nodos.exe" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
             echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
           fi
         shell: bash
