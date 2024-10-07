@@ -84,8 +84,6 @@ jobs:
             ./${{ env.NOSMAN_EXECUTABLE_NAME }} update
             cd ..
           }
-          echo "Updating system nosman"
-          Copy-Item -Path ./workspace/${{ env.NOSMAN_EXECUTABLE_NAME }} -Destination ${{ env.SYSTEM_NOSMAN_PATH }} -Force
         shell: pwsh
         working-directory: modules-${{ inputs.ref_name }}
 
