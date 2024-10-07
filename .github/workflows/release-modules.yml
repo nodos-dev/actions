@@ -31,11 +31,11 @@ on:
 
 jobs:
   build:
-    name: Build & Publish (${{ inputs.ref_name }} - ${{ inputs.build_number }})
     runs-on: [self-hosted, Windows]
     strategy:
       matrix:
         runner: [[self-hosted, Windows, "${{ inputs.ref_name }}"], [self-hosted, Linux, "${{ inputs.ref_name }}"]]
+    name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[1] }})"
 
     env:
       GH_USERNAME: "nodos-bot"
