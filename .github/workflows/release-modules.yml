@@ -49,9 +49,11 @@ jobs:
           if [ "${{ matrix.runner[1] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=/usr/bin/nodos" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=./nodos" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
           else
             echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=./nodos.exe" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -139,7 +141,7 @@ jobs:
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
         shell: pwsh
         run: |
-          $LastBuildTag = git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/build.${{ inputs.ref_name }}-*' | Select-Object -First 1
+          $LastBuildTag = git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/${{ env.TAG_NAME_PREFIX }}-*' | Select-Object -First 1
           echo "Last build tag is $LastBuildTag"
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --compare-with="$LastBuildTag" --vendor Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
@@ -153,6 +155,6 @@ jobs:
       
       - name: Tag
         run: |
-          git tag -a "build.${{ inputs.ref_name }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
-          git push origin "build.${{ inputs.ref_name }}-${{ inputs.build_number }}"
+          git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
+          git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
