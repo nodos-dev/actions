@@ -29,19 +29,18 @@ on:
         default: '0'
         type: string
 
-env:
-  GH_USERNAME: "nodos-bot"
-  GIT_EMAIL: "bot@nodos.dev"
-  GH_TOKEN: ${{ secrets.CI_TOKEN }}
-  DIST_TARGET_DIR: "D:/Builds/Nodos-Modules"
-  SYSTEM_NOSMAN_PATH: "C:/Tools/nosman.exe"
-  RUST_BACKTRACE: 1
-  NOSMAN_EXECUTABLE_NAME: "nodos.exe"
-
 jobs:
   build:
     name: Build & Publish (${{ inputs.ref_name }} - ${{ inputs.build_number }})
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows]
+    env:
+      GH_USERNAME: "nodos-bot"
+      GIT_EMAIL: "bot@nodos.dev"
+      GH_TOKEN: ${{ secrets.CI_TOKEN }}
+      DIST_TARGET_DIR: "D:/Builds/Nodos-Modules"
+      SYSTEM_NOSMAN_PATH: "C:/Tools/nosman.exe"
+      RUST_BACKTRACE: 1
+      NOSMAN_EXECUTABLE_NAME: "nodos.exe"
     steps:
       - name: Update Git Credentials
         continue-on-error: true
