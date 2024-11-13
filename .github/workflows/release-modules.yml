@@ -107,8 +107,9 @@ jobs:
           git clean -ffd
           git restore .
           git pull --force
-          git submodule update --force --recursive --init
           git fetch --tags
+          git checkout ${{ github.sha }}
+          git submodule update --force --recursive --init
           git status
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module
 
