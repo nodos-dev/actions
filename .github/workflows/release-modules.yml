@@ -129,7 +129,7 @@ jobs:
       - name: Pre-Configure
         shell: pwsh
         run: |
-          ${{inputs.pre_config_command}}
+          ${{inputs.pre_config_command}} && cd ../../
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Configure
