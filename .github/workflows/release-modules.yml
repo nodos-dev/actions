@@ -28,6 +28,11 @@ on:
         required: false
         default: '0'
         type: string
+      pre_config_command:
+        description: 'Execute a command before CMake configuration step'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   build:
@@ -121,11 +126,17 @@ jobs:
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
+      - name: Pre-Configure
+        shell: pwsh
+        run: |
+          ${{inputs.pre_config_command}}
+        working-directory: modules-${{ inputs.ref_name }}/workspace
+
       - name: Configure
         shell: pwsh
         run: |
           cmake -S ./Toolchain/CMake -B ../Project -DCMAKE_BUILD_TYPE=Release
-        working-directory: modules-${{ inputs.ref_name }}/workspace
+        working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Build
         shell: pwsh
