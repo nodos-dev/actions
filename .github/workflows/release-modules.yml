@@ -129,14 +129,14 @@ jobs:
       - name: Pre-Configure
         shell: pwsh
         run: |
-          ${{inputs.pre_config_command}} && cd ../../
+          ${{inputs.pre_config_command}}
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Configure
         shell: pwsh
         run: |
           cmake -S ./Toolchain/CMake -B ../Project -DCMAKE_BUILD_TYPE=Release
-        working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
+        working-directory: modules-${{ inputs.ref_name }}/workspace
 
       - name: Build
         shell: pwsh
