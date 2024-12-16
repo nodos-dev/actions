@@ -33,6 +33,11 @@ on:
         required: false
         default: ''
         type: string
+      sign_binaries:
+        description: 'Sign binaries'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -143,6 +148,13 @@ jobs:
         run: |
           cmake --build ../Project --config Release -j 8
         working-directory: modules-${{ inputs.ref_name }}/workspace
+
+      - name: Sign Binaries
+        if: ${{ inputs.sign_binaries }}
+        shell: pwsh
+        run: |
+          ./sign_all.ps1 ${{ github.workspace }}}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
+        working-directory: $env:MEDIAZ_CERTIFICATES_DIR
 
       - name: Release (Changed)
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
