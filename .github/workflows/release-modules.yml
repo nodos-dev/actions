@@ -154,7 +154,7 @@ jobs:
         shell: pwsh
         run: |
           ./sign_all.ps1 ${{ github.workspace }}}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
-        working-directory: $env:MEDIAZ_CERTIFICATES_DIR
+        working-directory: ${{ env.MEDIAZ_CERTIFICATES_DIR }}
 
       - name: Release (Changed)
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
