@@ -153,7 +153,8 @@ jobs:
         if: ${{ inputs.sign_binaries }}
         shell: pwsh
         run: |
-          ./sign_all.ps1 ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
+          $scriptPath = "${{ env.MEDIAZ_CERTIFICATES_DIR }}/sign_all.ps1"
+          . $scriptPath ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
         working-directory: ${{ env.MEDIAZ_CERTIFICATES_DIR }}
 
       - name: Release (Changed)
