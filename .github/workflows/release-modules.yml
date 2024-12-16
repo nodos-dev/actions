@@ -153,6 +153,7 @@ jobs:
         if: ${{ inputs.sign_binaries }}
         run: |
           cd /d %MEDIAZ_CERTIFICATES_DIR% && python sign_module.py ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
+        shell: cmd
 
       - name: Release (Changed)
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
