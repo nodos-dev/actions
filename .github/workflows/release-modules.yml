@@ -144,10 +144,15 @@ jobs:
 
       - name: Sign Binaries
         if: ${{ inputs.sign_binaries }}
-        shell: pwsh
         run: |
-          $scriptPath = "$env:MEDIAZ_CERTIFICATES_DIR\\sign_all.ps1"
-          . $scriptPath ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
+          if [ "$(uname -s)" == "Linux" ]; then
+            # On Linux (Git Bash or other bash shell)
+            cd "$MEDIAZ_CERTIFICATES_DIR" && python sign_module.py "${GITHUB_WORKSPACE}/modules-${INPUTS_REF_NAME}/workspace/Module/modules-repo"
+          else
+            # On Windows (cmd.exe)
+            cd /d %MEDIAZ_CERTIFICATES_DIR% && python sign_module.py ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
+          fi
+        shell: bash
 
       - name: Release (Changed)
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
