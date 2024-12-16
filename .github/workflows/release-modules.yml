@@ -28,6 +28,11 @@ on:
         required: false
         default: '0'
         type: string
+      sign_binaries:
+        description: 'Sign binaries'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -136,6 +141,13 @@ jobs:
         run: |
           cmake --build ../Project --config Release -j 8
         working-directory: modules-${{ inputs.ref_name }}/workspace
+
+      - name: Sign Binaries
+        if: ${{ inputs.sign_binaries }}
+        shell: pwsh
+        run: |
+          $scriptPath = "$env:MEDIAZ_CERTIFICATES_DIR\\sign_all.ps1"
+          . $scriptPath ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
 
       - name: Release (Changed)
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
