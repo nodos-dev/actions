@@ -151,10 +151,8 @@ jobs:
 
       - name: Sign Binaries
         if: ${{ inputs.sign_binaries }}
-        shell: pwsh
         run: |
-          $scriptPath = "$env:MEDIAZ_CERTIFICATES_DIR\\sign_all.ps1"
-          . $scriptPath ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo/Binaries
+          cd /d %MEDIA_CERTIFICATES_DIR% && python sign_module.py ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Release (Changed)
         if: ${{ inputs.build_all == null || inputs.build_all == false }}
