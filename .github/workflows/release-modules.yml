@@ -8,8 +8,8 @@ on:
       ref_name:
         required: true
         type: string
-      build_all:
-        description: 'Build all modules'
+      release_all:
+        description: 'Force release all modules'
         required: false
         default: false
         type: boolean
@@ -143,19 +143,13 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
       - name: Sign Binaries
-        if: ${{ inputs.sign_binaries }}
-        run: |
-          if [ "$(uname -s)" == "Linux" ]; then
-            # On Linux (Git Bash or other bash shell)
-            cd "$MEDIAZ_CERTIFICATES_DIR" && python sign_module.py "${GITHUB_WORKSPACE}/modules-${INPUTS_REF_NAME}/workspace/Module/modules-repo"
-          else
-            # On Windows (cmd.exe)
-            cd /d %MEDIAZ_CERTIFICATES_DIR% && python sign_module.py ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
-          fi
+        if: ${{ inputs.sign_binaries && matrix.runner[1] == 'Windows' }}
+        run: |            
+          cd /d %MEDIAZ_CERTIFICATES_DIR% && python sign_module.py ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
         shell: bash
 
       - name: Release (Changed)
-        if: ${{ inputs.build_all == null || inputs.build_all == false }}
+        if: ${{ inputs.release_all == null || inputs.release_all == false }}
         shell: pwsh
         run: |
           $LastBuildTag = git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/${{ env.TAG_NAME_PREFIX }}-*' | Select-Object -First 1
@@ -164,7 +158,7 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
       
       - name: Release (All)
-        if: ${{ inputs.build_all }}
+        if: ${{ inputs.release_all }}
         shell: pwsh
         run: |
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}"
