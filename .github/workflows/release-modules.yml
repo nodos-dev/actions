@@ -159,12 +159,11 @@ jobs:
         shell: pwsh
         run: |
           if (${{ matrix.runner[1] }} -eq "Windows") {
-            $RELEASE_NOTES = @"
+            $RELEASE_NOTES = "@
             ${{ github.event.inputs.release_notes }}
-            Binaries signed: ${{ github.event.inputs.sign }}
-            "@
+            Binaries signed: ${{ github.event.inputs.sign }} @"
           } else {
-            $RELEASE_NOTES = ${{ github.event.inputs.release_notes }}
+            $RELEASE_NOTES = "${{ github.event.inputs.release_notes }}"
           }
 
           $LastBuildTag = git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/${{ env.TAG_NAME_PREFIX }}-*' | Select-Object -First 1
@@ -196,7 +195,7 @@ jobs:
           } else {
             $RELEASE_NOTES = ${{ github.event.inputs.release_notes }}
           }
-            
+
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$RELEASE_NOTES"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
       
