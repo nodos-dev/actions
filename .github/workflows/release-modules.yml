@@ -173,17 +173,17 @@ jobs:
           LastBuildTag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
           echo "Last build tag is $LastBuildTag"
 
-          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} `
-            --workspace ../../ `
-            publish-batch `
-            --repo-path . `
-            --compare-with="$LastBuildTag" `
-            --vendor Nodos `
-            --version-suffix ".b${{ inputs.build_number }}" `
-            --verbose `
-            --publisher-name "${{ env.GH_USERNAME }}" `
-            --publisher-email "${{ env.GIT_EMAIL }}" `
-            --tag "${{ inputs.ref_name }}" `
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
+            --workspace ../../ \
+            publish-batch \
+            --repo-path . \
+            --compare-with="$LastBuildTag" \
+            --vendor Nodos \
+            --version-suffix ".b${{ inputs.build_number }}" \
+            --verbose \
+            --publisher-name "${{ env.GH_USERNAME }}" \
+            --publisher-email "${{ env.GIT_EMAIL }}" \
+            --tag "${{ inputs.ref_name }}" \
             --release-notes "$RELEASE_NOTES"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
