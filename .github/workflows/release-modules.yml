@@ -156,18 +156,22 @@ jobs:
 
       - name: Publish (Changed)
         if: ${{ inputs.release_all == null || inputs.release_all == 'false' }}
-        shell: pwsh
+        shell: bash
         run: |
-          if ("${{ matrix.runner[1] }}" -eq "Windows") {
-            $RELEASE_NOTES = "@
-            ${{ github.event.inputs.release_notes }}
-            Binaries signed: ${{ github.event.inputs.sign }} @"
-          } else {
-            $RELEASE_NOTES = "${{ github.event.inputs.release_notes }}"
-          }
+          if [ "${{ matrix.runner[1] }}" == "Windows" ]; then
+            if [ "${{ github.event.inputs.sign_binaries }}" == "true" ]; then
+              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
+              Executable binaries are signed!"
+            else
+              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
+              Executable binaries are not signed!"
+            fi
+          else
+            RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
+          fi
 
-          $LastBuildTag = git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/${{ env.TAG_NAME_PREFIX }}-*' | Select-Object -First 1
-          Write-Host "Last build tag is $LastBuildTag"
+          LastBuildTag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
+          echo "Last build tag is $LastBuildTag"
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} `
             --workspace ../../ `
@@ -185,15 +189,19 @@ jobs:
 
       - name: Publish (All)
         if: ${{ inputs.release_all }}
-        shell: pwsh
+        shell: bash
         run: |
-          if ("${{ matrix.runner[1] }}" -eq "Windows") {
-            $RELEASE_NOTES = "@
-            ${{ github.event.inputs.release_notes }}
-            Binaries signed: ${{ github.event.inputs.sign }} @"
-          } else {
-            $RELEASE_NOTES = "${{ github.event.inputs.release_notes }}"
-          }
+          if [ "${{ matrix.runner[1] }}" == "Windows" ]; then
+            if [ "${{ github.event.inputs.sign_binaries }}" == "true" ]; then
+              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
+              Executable binaries are signed!"
+            else
+              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
+              Executable binaries are not signed!"
+            fi
+          else
+            RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
+          fi
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$RELEASE_NOTES"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
