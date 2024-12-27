@@ -38,6 +38,16 @@ on:
         required: false
         default: ''
         type: string
+      linux:
+        description: 'Release for Linux'
+        required: false
+        default: true
+        type: boolean
+      windows:
+        description: 'Release for Windows'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   build:
@@ -47,6 +57,7 @@ jobs:
       fail-fast: false
     name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[1] }})"
     runs-on: ${{ matrix.runner }}
+    if: ${{ matrix.runner[1] == 'Windows' && inputs.windows }} || ${{ matrix.runner[1] == 'Linux' && inputs.linux }}
 
     env:
       GH_USERNAME: "nodos-bot"
