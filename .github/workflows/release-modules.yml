@@ -78,7 +78,7 @@ jobs:
   build:
     strategy:
       matrix:
-        runner: ${{ needs.prepare-strategy.outputs.runner-list }}
+        runner: ${{ fromJson(needs.prepare-strategy.outputs.runner-list) }}
       fail-fast: false
     name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[1] }})"
     needs: prepare-strategy
