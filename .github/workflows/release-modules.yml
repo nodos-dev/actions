@@ -38,6 +38,11 @@ on:
         required: false
         default: ''
         type: string
+      pre_config_command:
+        description: 'Execute a command before configuration steps'
+        required: false
+        default: ''
+        type: string
       linux:
         description: 'Release for Linux'
         required: false
@@ -110,7 +115,6 @@ jobs:
         run: |
           git credential-manager github login --username ${{ env.GH_USERNAME }} --token ${{ secrets.CI_TOKEN }} --force
 
-
       - name: Clean Build
         shell: pwsh
         if: ${{ inputs.clean }}
@@ -171,6 +175,12 @@ jobs:
         run: |
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
         working-directory: modules-${{ inputs.ref_name }}/workspace
+
+      - name: Pre-Configure
+        shell: pwsh
+        run: |
+          ${{inputs.pre_config_command}}
+        working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Configure
         shell: pwsh
