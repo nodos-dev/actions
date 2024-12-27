@@ -50,14 +50,39 @@ on:
         type: boolean
 
 jobs:
+  prepare-strategy:
+    name: Prepare Strategy
+    runs-on: self-hosted
+    outputs:
+      runner-list: ${{ steps.result-step.outputs.runner-list }}
+    steps:
+      - name: Include Linux Run
+        id: linux-step
+        shell: bash
+        run: |
+          echo "runner-list=[self-hosted, Linux, ${{ inputs.ref_name }}]" >> $GITHUB_OUTPUT
+        if: ${{ inputs.linux }}
+      - name: Include Windows Run
+        id: windows-step
+        shell: bash
+        run: |
+          echo "runner-list=[self-hosted, Windows, ${{ inputs.ref_name }}]" >> $GITHUB_OUTPUT
+        if: ${{ inputs.windows }}
+      - name: Set Output
+        id: result-step
+        shell: bash
+        # Now, concatenate all the outputs into a single output result-step.outputs.runner-list
+        run: |
+          echo "runner-list=[${{ steps.linux-step.outputs.runner-list }}, ${{ steps.windows-step.outputs.runner-list }}]" >> $GITHUB_OUTPUT
+
   build:
     strategy:
       matrix:
-        runner: [[self-hosted, Windows, "${{ inputs.ref_name }}"], [self-hosted, Linux, "${{ inputs.ref_name }}"]]
+        runner: ${{ needs.prepare-strategy.outputs.runner-list }}
       fail-fast: false
     name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[1] }})"
+    needs: prepare-strategy
     runs-on: ${{ matrix.runner }}
-    if: ${{ matrix.runner[1] == 'Windows' && inputs.windows }} || ${{ matrix.runner[1] == 'Linux' && inputs.linux }}
 
     env:
       GH_USERNAME: "nodos-bot"
