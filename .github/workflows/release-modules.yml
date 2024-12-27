@@ -152,7 +152,7 @@ jobs:
         if: ${{ inputs.sign_binaries && matrix.runner[1] == 'Windows' && inputs.ref_name != 'dev' }}
         run: |            
           cd $MEDIAZ_CERTIFICATES_DIR
-          python sign_module.py ${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
+          python sign_module.py "${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo"
         shell: bash
 
       - name: Publish (Changed)
