@@ -195,8 +195,8 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
       - name: Sign Binaries
-        if: ${{ inputs.sign_binaries && matrix.runner[1] == 'Windows' && inputs.ref_name != 'dev' }}
-        run: |            
+        if: ${{ inputs.sign_binaries }}
+        run: |
           cd $MEDIAZ_CERTIFICATES_DIR
           python sign_module.py "${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo"
         shell: bash
