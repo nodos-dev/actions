@@ -60,13 +60,13 @@ jobs:
         id: linux-step
         shell: bash
         run: |
-          echo "runner-list=[self-hosted, Linux, ${{ inputs.ref_name }}]" >> $GITHUB_OUTPUT
+          echo "runner-list=['self-hosted', 'Linux', '${{ inputs.ref_name }}']" >> $GITHUB_OUTPUT
         if: ${{ inputs.linux }}
       - name: Include Windows Run
         id: windows-step
         shell: bash
         run: |
-          echo "runner-list=[self-hosted, Windows, ${{ inputs.ref_name }}]" >> $GITHUB_OUTPUT
+          echo "runner-list=['self-hosted', 'Windows', '${{ inputs.ref_name }}']" >> $GITHUB_OUTPUT
         if: ${{ inputs.windows }}
       - name: Set Output
         id: result-step
