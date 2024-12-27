@@ -67,6 +67,12 @@ jobs:
         run: |
           echo "runner-list=['self-hosted', 'Linux', '${{ inputs.ref_name }}']" >> $GITHUB_OUTPUT
         if: ${{ inputs.linux }}
+      - name: Include Holy Comma
+        id: comma-step
+        shell: bash
+        if : ${{ inputs.linux && inputs.windows }}
+        run: |
+          echo "holy-comma=, " >> $GITHUB_OUTPUT
       - name: Include Windows Run
         id: windows-step
         shell: bash
@@ -78,7 +84,7 @@ jobs:
         shell: bash
         # Now, concatenate all the outputs into a single output result-step.outputs.runner-list
         run: |
-          echo "runner-list=[${{ steps.linux-step.outputs.runner-list }}, ${{ steps.windows-step.outputs.runner-list }}]" >> $GITHUB_OUTPUT
+          echo "runner-list=[${{ steps.linux-step.outputs.runner-list }}${{ steps.comma-step.outputs.holy-comma }}${{ steps.windows-step.outputs.runner-list }}]" >> $GITHUB_OUTPUT
 
   build:
     strategy:
