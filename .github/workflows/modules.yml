@@ -90,7 +90,7 @@ jobs:
       matrix:
         runner: ${{ fromJson(needs.prepare-strategy.outputs.runner-list) }}
       fail-fast: false
-    name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[1] }}) ${{ inputs.publish_mode != 'None' && ' (Publishing)'}}"
+    name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[1] }}) ${{ inputs.publish_mode != 'None' && ' (Publishing)'}} ${{ inputs.publish_mode == 'None' && ' (Build Only)' }}"
     needs: prepare-strategy
     runs-on: ${{ matrix.runner }}
 
