@@ -1,6 +1,6 @@
 # Copyright MediaZ Teknoloji A.S. All Rights Reserved.
 
-name: Release Modules
+name: Modules
 
 on:
   workflow_call:
@@ -8,11 +8,15 @@ on:
       ref_name:
         required: true
         type: string
-      release_all:
-        description: 'Force release all modules'
+      publish_mode:
+        type: choice
+        description: 'Publish Mode'
+        options:
+          - Only Changed
+          - All Modules
+          - None
         required: false
-        default: false
-        type: boolean
+        default: 'Only Changed'
       nodos_sdk_version:
         description: 'Nodos SDK Version'
         required: false
@@ -201,14 +205,14 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
       - name: Sign Binaries
-        if: ${{ inputs.sign_binaries }}
+        if: ${{ inputs.publish_mode != 'None' && inputs.sign_binaries }}
         run: |
           cd $MEDIAZ_CERTIFICATES_DIR
           python sign_module.py "${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo"
         shell: bash
 
       - name: Publish (Changed)
-        if: ${{ inputs.release_all == null || inputs.release_all == 'false' }}
+        if: ${{ inputs.publish_mode == 'Only Changed' }}
         shell: bash
         run: |
           if [ "${{ matrix.runner[1] }}" == "Windows" ]; then
@@ -241,7 +245,7 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Publish (All)
-        if: ${{ inputs.release_all }}
+        if: ${{ inputs.publish_mode == 'All Modules' }}
         shell: bash
         run: |
           if [ "${{ matrix.runner[1] }}" == "Windows" ]; then
@@ -260,6 +264,7 @@ jobs:
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
       
       - name: Tag
+        if: ${{ inputs.publish_mode != 'None' }}
         run: |
           git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
           git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
