@@ -9,13 +9,8 @@ on:
         required: true
         type: string
       publish_mode:
-        type: choice
-        description: 'Publish Mode'
-        options:
-          - Only Changed
-          - All Modules
-          - None
-        required: false
+        type: string
+        description: 'Publish Mode. Options: Only Changed, All Modules, None'
         default: 'Only Changed'
       nodos_sdk_version:
         description: 'Nodos SDK Version'
