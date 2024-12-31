@@ -64,12 +64,14 @@ jobs:
         id: prepare-step
         shell: bash
         run: |
-          echo "runner-list=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
+          RUNNER_LIST=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
             --workflow-input-linux ${{ inputs.linux }} \
             --workflow-input-windows ${{ inputs.windows }} \
             --sign ${{ inputs.sign_binaries }} \
             --ref-name ${{ inputs.ref_name }} \
-            --event-name "${{ github.event_name }}")" >> $GITHUB_OUTPUT
+            --event-name "${{ github.event_name }}")
+          echo Runners: $RUNNER_LIST
+          echo "runner-list=$RUNNER_LIST" >> $GITHUB_OUTPUT
 
   build:
     strategy:
