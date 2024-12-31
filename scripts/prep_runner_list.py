@@ -17,7 +17,6 @@ sign = None
 push_event_defaults = None
 
 for i in range(1, len(sys.argv), 2):
-    print(sys.argv[i], sys.argv[i + 1])
     if sys.argv[i] == "--event-name":
         event_name = sys.argv[i + 1]
     elif sys.argv[i] == "--ref-name":
