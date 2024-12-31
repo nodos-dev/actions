@@ -1,61 +1,63 @@
-import os
-import sys
+import argparse
+import json
 
-# Args:
-# --event-name: GitHub event name
-# --ref-name: GitHub ref name
-# --workflow-dispatch-input-linux
-# --workflow-dispatch-input-windows
-# --sign: Works only on Windows
-# --push-event-defaults: JSON
+# Custom function to handle both flag and 'true'/'false' string inputs
+def str_to_bool(value):
+    if value.lower() in ['true', 'false']:
+        return value.lower() == 'true'
+    raise argparse.ArgumentTypeError(f"Invalid value for a boolean argument: '{value}'. Use 'true' or 'false'.")
 
-event_name = None
-ref_name = None
-workflow_input_linux = None
-workflow_input_windows = None
-sign = None
-push_event_defaults = None
+def main():
+    # Initialize the argument parser
+    parser = argparse.ArgumentParser(description="Process GitHub event-related arguments.")
 
-for i in range(1, len(sys.argv), 2):
-    if sys.argv[i] == "--event-name":
-        event_name = sys.argv[i + 1]
-    elif sys.argv[i] == "--ref-name":
-        ref_name = sys.argv[i + 1]
-    elif sys.argv[i] == "--workflow-input-linux":
-        workflow_input_linux = sys.argv[i + 1]
-    elif sys.argv[i] == "--workflow-input-windows":
-        workflow_input_windows = sys.argv[i + 1]
-    elif sys.argv[i] == "--sign":
-        sign = sys.argv[i + 1]
-    elif sys.argv[i] == "--push-event-defaults":
-        push_event_defaults = sys.argv[i + 1]
+    # Define the arguments (supporting both flags and 'true'/'false' string)
+    parser.add_argument("--event-name", required=True, help="GitHub event name (e.g., push, workflow_dispatch)")
+    parser.add_argument("--ref-name", required=True, help="GitHub ref name (e.g., branch or tag name)")
+    parser.add_argument("--workflow-input-linux", type=str_to_bool, nargs="?", default=False, help="Enable Linux workflow input (true/false or flag)")
+    parser.add_argument("--workflow-input-windows", type=str_to_bool, nargs="?", default=False, help="Enable Windows workflow input (true/false or flag)")
+    parser.add_argument("--sign", type=str_to_bool, nargs="?", default=False, help="Enable signing (Windows only, true/false or flag)")
+    parser.add_argument("--push-event-defaults", type=str, help="JSON string with push event defaults")
+    # Parse the arguments
+    args = parser.parse_args()
+    
+    # Extract values
+    event_name = args.event_name
+    ref_name = args.ref_name
+    workflow_input_linux = args.workflow_input_linux
+    workflow_input_windows = args.workflow_input_windows
+    sign = args.sign
+    push_event_defaults = args.push_event_defaults
 
-runner_list = [] # E.g. [["self-hosted", "Linux", "dev"], ["self-hosted", "Windows", "dev"]]
+    # Initialize runner list
+    runner_list = []
 
-if event_name == "workflow_dispatch" or event_name == "workflow_call":
-    if workflow_input_linux == "true":
-        runner_list.append(["Linux"])
-    if workflow_input_windows == "true":
-        win_labels = ["Windows"]
-        if sign == "true":
-            win_labels.append("signer")
-        runner_list.append(win_labels)
-elif event_name == "push":
-    if push_event_defaults:
-        import json
-        push_event_defaults = json.loads(push_event_defaults)
-        # E.g.: {"linux": true, "windows": true, "sign": true}
-        if push_event_defaults["linux"] or push_event_defaults["linux"] == "true":
+    if event_name in ["workflow_dispatch", "workflow_call"]:
+        if workflow_input_linux:
             runner_list.append(["Linux"])
-        if push_event_defaults["windows"] or push_event_defaults["windows"] == "true":
+        if workflow_input_windows:
             win_labels = ["Windows"]
-            if push_event_defaults["sign"] or push_event_defaults["sign"] == "true":
+            if sign:
                 win_labels.append("signer")
             runner_list.append(win_labels)
+    elif event_name == "push":
+        if push_event_defaults:
+            push_event_defaults = json.loads(push_event_defaults)
+            if push_event_defaults.get("linux", False):
+                runner_list.append(["Linux"])
+            if push_event_defaults.get("windows", False):
+                win_labels = ["Windows"]
+                if push_event_defaults.get("sign", False):
+                    win_labels.append("signer")
+                runner_list.append(win_labels)
 
-default_tags = ['self-hosted', ref_name]
+    # Add default tags
+    default_tags = ['self-hosted', ref_name]
+    for runner in runner_list:
+        runner.extend(default_tags)
 
-for i in range(len(runner_list)):
-    runner_list[i].extend(default_tags)
+    # Output the runner list
+    print(str(runner_list))
 
-print(runner_list)
+if __name__ == "__main__":
+    main()
