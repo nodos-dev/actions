@@ -91,7 +91,7 @@ jobs:
     steps:
       - name: Setup Environment Variables
         run: |
-          if [ "${{ matrix.runner[1] }}" == "Linux" ]; then
+          if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
             echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
