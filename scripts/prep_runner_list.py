@@ -30,15 +30,13 @@ for i in range(1, len(sys.argv), 2):
     elif sys.argv[i] == "--push-event-defaults":
         push_event_defaults = sys.argv[i + 1]
 
-default_tags = ['self-hosted', ref_name]
-
 runner_list = [] # E.g. [["self-hosted", "Linux", "dev"], ["self-hosted", "Windows", "dev"]]
 
 if event_name == "workflow_dispatch" or event_name == "workflow_call":
     if workflow_input_linux == "true":
-        runner_list.append(default_tags + ["Linux"])
+        runner_list.append(["Linux"])
     if workflow_input_windows == "true":
-        win_labels = default_tags + ["Windows"]
+        win_labels = ["Windows"]
         if sign == "true":
             win_labels.append("signer")
         runner_list.append(win_labels)
@@ -48,11 +46,16 @@ elif event_name == "push":
         push_event_defaults = json.loads(push_event_defaults)
         # E.g.: {"linux": true, "windows": true, "sign": true}
         if push_event_defaults["linux"] or push_event_defaults["linux"] == "true":
-            runner_list.append(default_tags + ["Linux"])
+            runner_list.append(["Linux"])
         if push_event_defaults["windows"] or push_event_defaults["windows"] == "true":
-            win_labels = default_tags + ["Windows"]
+            win_labels = ["Windows"]
             if push_event_defaults["sign"] or push_event_defaults["sign"] == "true":
                 win_labels.append("signer")
             runner_list.append(win_labels)
+
+default_tags = ['self-hosted', ref_name]
+
+for i in range(len(runner_list)):
+    runner_list[i].extend(default_tags)
 
 print(runner_list)
