@@ -58,36 +58,18 @@ jobs:
     name: Prepare Strategy
     runs-on: self-hosted
     outputs:
-      runner-list: ${{ steps.result-step.outputs.runner-list }}
+      runner-list: ${{ steps.prepare-step.outputs.runner-list }}
     steps:
-      - name: Include Linux Run
-        id: linux-step
+      - name: Prepare Runner List
+        id: prepare-step
         shell: bash
         run: |
-          echo "runner-list=['self-hosted', 'Linux', '${{ inputs.ref_name }}']" >> $GITHUB_OUTPUT
-        if: ${{ inputs.linux }}
-      - name: Include Holy Comma
-        id: comma-step
-        shell: bash
-        if : ${{ inputs.linux && inputs.windows }}
-        run: |
-          echo "holy-comma=, " >> $GITHUB_OUTPUT
-      - name: Include Windows Run
-        id: windows-step
-        shell: bash
-        run: |
-          if [ "${{ github.event.inputs.sign_binaries }}" == "true" ]; then
-            echo "runner-list=['self-hosted', 'Windows', '${{ inputs.ref_name }}', 'signer']" >> $GITHUB_OUTPUT
-          else
-            echo "runner-list=['self-hosted', 'Windows', '${{ inputs.ref_name }}']" >> $GITHUB_OUTPUT
-          fi
-        if: ${{ inputs.windows }}
-      - name: Set Output
-        id: result-step
-        shell: bash
-        # Now, concatenate all the outputs into a single output result-step.outputs.runner-list
-        run: |
-          echo "runner-list=[${{ steps.linux-step.outputs.runner-list }}${{ steps.comma-step.outputs.holy-comma }}${{ steps.windows-step.outputs.runner-list }}]" >> $GITHUB_OUTPUT
+          echo "runner-list=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
+            --workflow-input-linux ${{ inputs.linux }} \
+            --workflow-input-windows ${{ inputs.windows }} \
+            --sign ${{ inputs.sign_binaries }} \
+            --ref-name ${{ inputs.ref_name }} \
+            --event-name "${{ github.event_name }}")" >> $GITHUB_OUTPUT
 
   build:
     strategy:
