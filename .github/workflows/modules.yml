@@ -69,7 +69,7 @@ jobs:
             --workflow-input-windows ${{ inputs.windows }} \
             --sign ${{ inputs.sign_binaries }} \
             --ref-name ${{ inputs.ref_name }} \
-            --event-name "${{ github.event_name }}")
+            --event-name "workflow_call")
           echo Runners: $RUNNER_LIST
           echo "runner-list=$RUNNER_LIST" >> $GITHUB_OUTPUT
 
