@@ -147,10 +147,10 @@ jobs:
           }
           cd ./modules-repo
           git fetch origin
-          get fetch --tags
+          git fetch --tags
           git clean -ffd
           git checkout ${{ github.sha }}
-          gut clean -ffd
+          git clean -ffd
           git submodule update --force --recursive --init
           git status
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module
