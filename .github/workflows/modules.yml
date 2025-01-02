@@ -187,7 +187,7 @@ jobs:
       - name: Sign Binaries
         if: ${{ inputs.publish_mode != 'None' && inputs.sign_binaries }}
         run: |
-          cd $MEDIAZ_CERTIFICATES_DIR
+          cd $MEDIAZ_SCRIPTS_DIR
           python sign_module.py "${{ github.workspace }}/modules-${{ inputs.ref_name }}/workspace/Module/modules-repo"
         shell: bash
 

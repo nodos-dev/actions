@@ -25,7 +25,7 @@ function Log-Error($message) {
 $files = Get-ChildItem -Path $DirectoryToSearch -Recurse -Include *.exe, *.dll | Select-Object -ExpandProperty FullName
 
 
-cd $env:MEDIAZ_CERTIFICATES_DIR
+cd $env:MEDIAZ_SCRIPTS_DIR
 
 if (-not $files) {
     Log-Error "No .exe or .dll files found in the directory $DirectoryToSearch"

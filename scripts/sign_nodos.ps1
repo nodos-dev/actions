@@ -12,10 +12,10 @@ $PASSWORD = $Env:MEDIAZ_CER_PWD
 
 $PROVIDER = $Env:MEDIAZ_CSP_NAME
 
-$CER_DIR = "$Env:MEDIAZ_CERTIFICATE_DIR"
+$CER_FILE = "$Env:MEDIAZ_CERTIFICATES_DIR/mediaz.cer"
 
 # Execute the signtool command
-$signtoolCmd = "signtool.exe sign /tr http://timestamp.sectigo.com /fd sha256 /td sha256 /f '$CER_DIR' /csp '$PROVIDER' /kc '$PASSWORD' '$EXE_PATH'"
+$signtoolCmd = "signtool.exe sign /tr http://timestamp.sectigo.com /fd sha256 /td sha256 /f '$CER_FILE' /csp '$PROVIDER' /kc '$PASSWORD' '$EXE_PATH'"
 
 Write-Host "[INFO] executing: $signtoolCmd"
 
