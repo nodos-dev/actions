@@ -64,14 +64,14 @@ jobs:
         id: prepare-step
         shell: bash
         run: |
-          RUNNER_LIST=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
+          runner_list=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
             --workflow-input-linux ${{ inputs.linux }} \
             --workflow-input-windows ${{ inputs.windows }} \
             --sign ${{ inputs.sign_binaries }} \
             --ref-name ${{ inputs.ref_name }} \
             --event-name "workflow_call")
-          echo Runners: $RUNNER_LIST
-          echo "runner-list=$RUNNER_LIST" >> $GITHUB_OUTPUT
+          echo Runners: $runner_list
+          echo "runner-list=$runner_list" >> $GITHUB_OUTPUT
 
   build:
     strategy:
@@ -195,52 +195,44 @@ jobs:
         if: ${{ inputs.publish_mode == 'Only Changed' }}
         shell: bash
         run: |
-          if [ "${{ matrix.runner[1] }}" == "Windows" ]; then
-            if [ "${{ github.event.inputs.sign_binaries }}" == "true" ]; then
-              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
-              Executable binaries are signed!"
-            else
-              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
-              Executable binaries are not signed!"
-            fi
+          if [ "${{ inputs.sign_binaries }}" == "true" ]; then
+            release_notes="${{ inputs.release_notes }}
+            Signed Release"
           else
-            RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
+            release_notes="${{ inputs.release_notes }}
+            Unsigned Release"
           fi
 
-          LastBuildTag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
-          echo "Last build tag is $LastBuildTag"
+          last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
+          echo "Last build tag is $last_build_tag"
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
             --workspace ../../ \
             publish-batch \
             --repo-path . \
-            --compare-with="$LastBuildTag" \
+            --compare-with="$last_build_tag" \
             --vendor Nodos \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
             --publisher-name "${{ env.GH_USERNAME }}" \
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
-            --release-notes "$RELEASE_NOTES"
+            --release-notes "$release_notes"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Publish (All)
         if: ${{ inputs.publish_mode == 'All Modules' }}
         shell: bash
         run: |
-          if [ "${{ matrix.runner[1] }}" == "Windows" ]; then
-            if [ "${{ github.event.inputs.sign_binaries }}" == "true" ]; then
-              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
-              Executable binaries are signed!"
-            else
-              RELEASE_NOTES="${{ github.event.inputs.release_notes }}
-              Executable binaries are not signed!"
-            fi
+          if [ "${{ inputs.sign_binaries }}" == "true" ]; then
+            release_notes="${{ inputs.release_notes }}
+            Signed Release"
           else
-            RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
+            release_notes="${{ inputs.release_notes }}
+            Unsigned Release"
           fi
 
-          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$RELEASE_NOTES"
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$release_notes"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
       
       - name: Tag
