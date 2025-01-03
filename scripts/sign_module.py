@@ -1,23 +1,62 @@
 import os
 import sys
 import subprocess
+import re
+
+def get_patterned_files(path, pattern):
+    # Step 1: Handle the {ext1, ext2, ...} pattern for file extensions
+    # Example: Binaries/*{.so,.dll,.lib} -> Binaries/.*\.(so|dll|lib)$
+    pattern = re.sub(r'\{([^}]+)\}', lambda m: r'(' + m.group(1).replace(',', r'|\.') + r')', pattern)
+    
+    # Debugging: Print the final regex pattern being used
+    print(f"Using pattern: {pattern}")
+    matched_files = []
+    try:
+        for file in os.listdir(path):
+            file_path = os.path.join(path, file)
+            print(f"Trying: {file}")
+            if os.path.isfile(file_path) and re.search(pattern, file):
+                matched_files.append(file_path)
+                print(f"Matched: {file_path}")
+    except FileNotFoundError:
+        print(f"Error: Path '{path}' does not exist.")
+    except Exception as e:
+        print(f"Error: {e}")
+    
+    print(f"matched_files:{matched_files}")
+    return matched_files
 
 def read_nossign_file(nossign_file_path):
-    """Reads file paths from a .nossign file, converting relative paths to absolute paths."""
+    """Reads file paths from a .nossign file, converting relative paths to absolute paths
+       and resolving file patterns using get_patterned_files."""
     
     if not os.path.exists(nossign_file_path):
         print(f"Error: The .nossign file does not exist {nossign_file_path}")
         sys.exit(1)
     
-    # Get the directory of the .nossign file
     nossign_dir = os.path.dirname(nossign_file_path)
     
     with open(nossign_file_path, 'r') as nossign_file:
-        # Read file paths, converting relative paths to absolute paths
-        return [
-            os.path.abspath(os.path.join(nossign_dir, line.strip())) if not os.path.isabs(line.strip()) else line.strip()
-            for line in nossign_file.readlines() if line.strip()
-        ]
+        result_files = []
+        for line in nossign_file.readlines():
+            line = line.strip()
+            if not line:
+                continue
+            
+            # If the line contains a pattern (like Binaries/*{.so,.dll,.lib}), resolve it
+            if '{' in line and '}' in line:
+                folder, pattern = line.split('*', 1)
+                folder = os.path.abspath(os.path.join(nossign_dir, folder))
+                pattern = pattern.strip()
+                files = get_patterned_files(folder, pattern)
+                result_files.extend(files)
+            else:
+                # Handle regular files, convert relative to absolute paths
+                absolute_path = os.path.abspath(os.path.join(nossign_dir, line)) if not os.path.isabs(line) else line
+                result_files.append(absolute_path)
+        
+        return result_files
+
 
 
 def run_powershell_script(file_path):
