@@ -142,6 +142,7 @@ jobs:
       - name: Checkout
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           if (-not (Test-Path -Path ./modules-repo)) {
             git clone --branch ${{ inputs.ref_name }} --depth 1 https://github.com/${{ github.repository }}.git --recurse-submodule --shallow-submodules ./modules-repo
           }
