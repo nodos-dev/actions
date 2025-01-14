@@ -189,7 +189,7 @@ jobs:
         if: ${{ inputs.publish_mode != 'None' }}
         shell: bash
         run: |
-          release_notes="${{ inputs.release_notes }}
+          release_notes="${{ inputs.release_notes }}"
           last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
           echo "Last build tag is $last_build_tag"
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
