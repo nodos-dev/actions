@@ -218,7 +218,8 @@ jobs:
             --publisher-name "${{ env.GH_USERNAME }}" \
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
-            --release-notes "$release_notes"
+            --release-notes "$release_notes" \
+            --version-check=none
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Publish (All)
@@ -233,7 +234,7 @@ jobs:
             Unsigned Release"
           fi
 
-          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$release_notes"
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$release_notes" --version-check=none
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
       
       - name: Tag
