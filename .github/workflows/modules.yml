@@ -219,7 +219,6 @@ jobs:
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
             --release-notes "$release_notes" \
-            --version-check=none
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
 
       - name: Publish (All)
