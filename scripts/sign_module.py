@@ -6,7 +6,7 @@ import re
 def get_patterned_files(path, pattern):
     # Step 1: Handle the {ext1, ext2, ...} pattern for file extensions
     # Example: Binaries/*{.so,.dll,.lib} -> Binaries/.*\.(so|dll|lib)$
-    pattern = re.sub(r'\{([^}]+)\}', lambda m: r'(' + m.group(1).replace(',', r'|\.') + r')', pattern)
+    pattern = re.sub(r'\{([^}]+)\}', lambda m: r'(' + m.group(1).replace(',.', r'|\.') + r')$', pattern)
     
     # Debugging: Print the final regex pattern being used
     print(f"Using pattern: {pattern}")
