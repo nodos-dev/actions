@@ -151,6 +151,7 @@ jobs:
           git fetch --tags
           git clean -ffd
           git checkout ${{ github.sha }}
+          git reset --hard
           git submodule update --force --recursive --init
           git status
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module
