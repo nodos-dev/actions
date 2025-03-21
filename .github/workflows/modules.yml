@@ -202,7 +202,9 @@ jobs:
         if: ${{ inputs.publish_mode != 'None' && matrix.runner[0] == 'Windows' }}
         run: |
           sentry-cli login --auth-token="${{ secrets.SENTRY_TOKEN }}"
-          sentry-cli debug-files upload -o mediaz-teknoloji -p nodos ./Project
+          Get-ChildItem -Path . -Recurse -Filter "*.pdb" | ForEach-Object {
+            sentry-cli debug-files upload -o mediaz-teknoloji -p nodos $_.FullName
+          }
         shell: pwsh
         working-directory: modules-${{ inputs.ref_name }}/
 
