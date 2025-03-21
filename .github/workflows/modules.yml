@@ -37,6 +37,11 @@ on:
         required: false
         default: ''
         type: string
+      last_build_tag:
+        description: 'Last Build Tag'
+        required: false
+        default: ''
+        type: string
       pre_config_command:
         description: 'Execute a command before configuration steps'
         required: false
@@ -205,7 +210,11 @@ jobs:
             Unsigned Release"
           fi
 
-          last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
+          if [ -z "${{inputs.last_build_tag}}" ]; then
+            last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${{ env.TAG_NAME_PREFIX }}-*" | head -n 1)
+          else
+            last_build_tag="${{inputs.last_build_tag}}"
+          fi
           echo "Last build tag is $last_build_tag"
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
