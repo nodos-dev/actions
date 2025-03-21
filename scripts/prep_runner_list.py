@@ -1,6 +1,9 @@
 import argparse
 import json
 
+NODOS_RUNNER_SUPPORTED_REFS = ["nodos-dev", "dev", "1.3", "1.2", "nodos-1.3", "nodos-1.2"]
+NODOS_RUNNER_DEFAULT_MACHINE = "dev"
+
 # Custom function to handle both flag and 'true'/'false' string inputs
 def str_to_bool(value):
     if value.lower() in ['true', 'false']:
@@ -50,6 +53,10 @@ def main():
                 if push_event_defaults.get("sign", False):
                     win_labels.append("signer")
                 runner_list.append(win_labels)
+
+    # Check if ref_name is supported
+    if ref_name not in NODOS_RUNNER_SUPPORTED_REFS:
+        ref_name = NODOS_RUNNER_DEFAULT_MACHINE
 
     # Add default tags
     default_tags = ['self-hosted', ref_name]
