@@ -4,6 +4,12 @@ name: Modules
 
 on:
   workflow_call:
+    secrets:
+      CI_TOKEN:
+        required: true
+      SENTRY_TOKEN:
+        required: false
+        description: 'If provided, PDBs will be uploaded to Sentry'
     inputs:
       ref_name:
         required: true
@@ -199,13 +205,17 @@ jobs:
         shell: bash
 
       - name: Upload PDBs
-        if: ${{ inputs.publish_mode != 'None' && matrix.runner[0] == 'Windows' }}
-        run: |
-          sentry-cli login --auth-token="${{ secrets.SENTRY_TOKEN }}"
-          Get-ChildItem -Path . -Recurse -Filter "*.pdb" | ForEach-Object {
-            sentry-cli debug-files upload -o mediaz-teknoloji -p nodos $_.FullName
-          }
+        if: ${{ inputs.publish_mode != 'None' && matrix.runner[0] == 'Windows'}}
         shell: pwsh
+        run: |
+          if ([string]::IsNullOrEmpty("${{ secrets.SENTRY_TOKEN }}")) {
+            echo "SENTRY_TOKEN is not provided. Skipping PDB upload."
+          } else {
+            sentry-cli login --auth-token="${{ secrets.SENTRY_TOKEN }}"
+            Get-ChildItem -Path . -Recurse -Filter "*.pdb" | ForEach-Object {
+              sentry-cli debug-files upload -o mediaz-teknoloji -p nodos $_.FullName
+            }
+          }
         working-directory: modules-${{ inputs.ref_name }}/
 
       - name: Publish (Changed)
