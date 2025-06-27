@@ -8,12 +8,10 @@ on:
       ref_name:
         required: true
         type: string
-      package_name:
+      packages:
         required: true
         type: string
-      package_version:
-        required: true
-        type: string
+        description: 'JSON-encoded list of tuples: [(package_name, package_version, package_path)]'
       publish_mode:
         type: string
         description: 'Publish Mode. Options: Publish Contents, None'
@@ -155,7 +153,7 @@ jobs:
         run: |
           git config user.email "${{ env.GIT_EMAIL }}"
           git config user.name "${{ env.GH_USERNAME }}"
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
   
       - name: Update Nosman Cache
         shell: pwsh
@@ -167,30 +165,21 @@ jobs:
         shell: pwsh
         run: |
           ${{inputs.pre_config_command}}
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
 
-      - name: Publish
+      - name: Publish Multiple Packages
         if: ${{ inputs.publish_mode != 'None' }}
         shell: bash
         run: |
-          last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
-          echo "Last build tag is $last_build_tag"
-          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
-            --workspace ../../ \
-            publish --type=generic \
-            --path . \
-            --name="${{ inputs.package_name }}" \
-            --version="${{ inputs.package_version }}" \
-            --version-suffix ".b${{ inputs.build_number }}" \
-            --verbose \
-            --publisher-name "${{ env.GH_USERNAME }}" \
-            --publisher-email "${{ env.GIT_EMAIL }}" \
+          python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/publish_multiple_packages.py)" \
+            --packages-json "${{ inputs.packages }}" \
             --tag "${{ inputs.ref_name }}"
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+            --build-number "${{ inputs.build_number }}"
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
 
       - name: Tag
         if: ${{ inputs.publish_mode != 'None' }}
         run: |
           git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
           git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
