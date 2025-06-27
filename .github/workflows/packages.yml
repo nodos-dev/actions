@@ -1,0 +1,198 @@
+# Copyright MediaZ Teknoloji A.S. All Rights Reserved.
+
+name: Modules
+
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        required: true
+        type: string
+      package_name:
+        required: true
+        type: string
+      package_version:
+        required: true
+        type: string
+      publish_mode:
+        type: string
+        description: 'Publish Mode. Options: Publish Contents, None'
+        default: 'None'
+      nodos_sdk_version:
+        description: 'Nodos SDK Version'
+        required: false
+        default: ''
+        type: string
+      clean:
+        description: 'Clean build'
+        required: false
+        default: false
+        type: boolean
+      build_number:
+        description: 'Build number'
+        required: false
+        default: '0'
+        type: string
+      pre_config_command:
+        description: 'Execute a command before configuration steps'
+        required: false
+        default: ''
+        type: string
+      linux:
+        description: 'Release for Linux'
+        required: false
+        default: true
+        type: boolean
+      windows:
+        description: 'Release for Windows'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  prepare-strategy:
+    name: Prepare Strategy
+    runs-on: self-hosted
+    outputs:
+      runner-list: ${{ steps.prepare-step.outputs.runner-list }}
+    steps:
+      - name: Prepare Runner List
+        id: prepare-step
+        shell: bash
+        run: |
+          runner_list=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
+            --workflow-input-linux ${{ inputs.linux }} \
+            --workflow-input-windows ${{ inputs.windows }} \
+            --ref-name ${{ inputs.ref_name }} \
+            --event-name "workflow_call")
+          echo Runners: $runner_list
+          echo "runner-list=$runner_list" >> $GITHUB_OUTPUT
+
+  build:
+    strategy:
+      matrix:
+        runner: ${{ fromJson(needs.prepare-strategy.outputs.runner-list) }}
+      fail-fast: false
+    name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[0] }}) ${{ (inputs.publish_mode != 'None' && ' (Publishing)') || '' }} ${{ (inputs.publish_mode == 'None' && ' (Build Only)') || '' }}"
+    needs: prepare-strategy
+    runs-on: ${{ matrix.runner }}
+
+    env:
+      GH_USERNAME: "nodos-bot"
+      GIT_EMAIL: "bot@nodos.dev"
+      GH_TOKEN: ${{ secrets.CI_TOKEN }}
+      RUST_BACKTRACE: 1
+
+    steps:
+      - name: Setup Environment Variables
+        run: |
+          if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
+            echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
+          else
+            echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Update Git Credentials
+        continue-on-error: true
+        shell: bash
+        run: |
+          git credential-manager github login --username ${{ env.GH_USERNAME }} --token ${{ secrets.CI_TOKEN }} --force
+
+      - name: Clean
+        shell: pwsh
+        if: ${{ inputs.clean }}
+        run: |
+          if (Test-Path -Path ./packages-${{ inputs.ref_name }}) { Remove-Item -Path ./packages-${{ inputs.ref_name }} -Recurse -Force }
+
+      - name: Setup Work Folder
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -Path ./packages-${{ inputs.ref_name }})) { New-Item -Path ./packages-${{ inputs.ref_name }} -ItemType Directory -Force }
+
+      - name: Setup Nodos Workspace (Latest)
+        if: ${{ inputs.nodos_sdk_version == '' }}
+        run: |
+          if (-not (Test-Path -Path ./workspace)) {
+            ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get
+          } else {
+            cd ./workspace
+            ./${{ env.NOSMAN_EXECUTABLE_NAME }} update
+            cd ..
+          }
+        shell: pwsh
+        working-directory: packages-${{ inputs.ref_name }}
+
+      - name: Setup Nodos Workspace (Specific Version)
+        if: ${{ inputs.nodos_sdk_version != '' }}
+        run: |
+          ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --version "${{ inputs.nodos_sdk_version }}"
+        shell: pwsh
+        working-directory: packages-${{ inputs.ref_name }}
+
+      - name: Checkout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path -Path ./packages-repo)) {
+            git clone --branch ${{ inputs.ref_name }} --depth 1 https://github.com/${{ github.repository }}.git --recurse-submodule --shallow-submodules ./packages-repo
+          }
+          cd ./packages-repo
+          git fetch origin
+          git fetch --tags
+          git clean -ffd
+          git checkout ${{ github.sha }}
+          git reset --hard
+          git submodule update --force --recursive --init
+          git status
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module
+
+      - name: Setup Git
+        run: |
+          git config user.email "${{ env.GIT_EMAIL }}"
+          git config user.name "${{ env.GH_USERNAME }}"
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+  
+      - name: Update Nosman Cache
+        shell: pwsh
+        run: |
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
+        working-directory: packages-${{ inputs.ref_name }}/workspace
+
+      - name: Pre-Configure
+        shell: pwsh
+        run: |
+          ${{inputs.pre_config_command}}
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+
+      - name: Publish
+        if: ${{ inputs.publish_mode != 'None' }}
+        shell: bash
+        run: |
+          last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${TAG_NAME_PREFIX}-*" | head -n 1)
+          echo "Last build tag is $last_build_tag"
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
+            --workspace ../../ \
+            publish --type=generic \
+            --path . \
+            --name="${{ inputs.package_name }}" \
+            --version="${{ inputs.package_version }}" \
+            --version-suffix ".b${{ inputs.build_number }}" \
+            --verbose \
+            --publisher-name "${{ env.GH_USERNAME }}" \
+            --publisher-email "${{ env.GIT_EMAIL }}" \
+            --tag "${{ inputs.ref_name }}"
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
+
+      - name: Tag
+        if: ${{ inputs.publish_mode != 'None' }}
+        env:
+            TAG_NAME_PREFIX: build.${{ inputs.ref_name }}-${{ matrix.runner[0] }}
+        run: |
+          git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
+          git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/samples-repo
