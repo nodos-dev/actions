@@ -89,11 +89,11 @@ jobs:
           if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{inputs.package_name}}.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
           else
             echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{inputs.package_name}}.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -190,8 +190,6 @@ jobs:
 
       - name: Tag
         if: ${{ inputs.publish_mode != 'None' }}
-        env:
-            TAG_NAME_PREFIX: build.${{ inputs.ref_name }}-${{ matrix.runner[0] }}
         run: |
           git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
           git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
