@@ -197,6 +197,12 @@ jobs:
           cmake --build ../Project --config Release -j 8
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
+      - name: Regression Tests
+        shell: pwsh
+        run: |
+          ./nodos test
+        working-directory: modules-${{ inputs.ref_name }}/workspace
+
       - name: Sign Binaries
         if: ${{ inputs.publish_mode != 'None' && inputs.sign_binaries }}
         run: |
