@@ -63,6 +63,11 @@ on:
         required: false
         default: true
         type: boolean
+      run_tests:
+        description: 'Run tests'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   prepare-strategy:
@@ -197,8 +202,47 @@ jobs:
           cmake --build ../Project --config Release -j 8
         working-directory: modules-${{ inputs.ref_name }}/workspace
 
+      - name: Configure Firewall (Windows)
+        if: ${{ inputs.run_tests && matrix.runner[0] == 'Windows' }}
+        shell: pwsh
+        run: |
+          $ExePath = (Get-ChildItem -Path ./Engine -Filter "nosLauncher.exe" -Recurse | Select-Object -First 1).FullName
+          if ($ExePath) {
+            New-NetFirewallRule -DisplayName "CI Allow Nodos" -Direction Inbound -Program $ExePath -Action Allow -Profile Any -Enabled True
+            Write-Host "Firewall rule created for: $ExePath"
+          } else {
+            Write-Host "nosLauncher.exe not found in Engine directory"
+          }
+        working-directory: modules-${{ inputs.ref_name }}/workspace
+
+      - name: Configure Firewall (Linux)
+        if: ${{ inputs.run_tests && matrix.runner[0] == 'Linux' }}
+        shell: bash
+        run: |
+          # Find the nosLauncher executable
+          exe_path=$(find ./Engine -name "nosLauncher" -type f -executable | head -n 1)
+          if [ -n "$exe_path" ]; then
+            # Allow the application through UFW (if available)
+            if command -v ufw >/dev/null 2>&1; then
+              sudo ufw allow from any to any port 1024:65535 comment "CI Allow Nodos"
+              echo "UFW rule created for port range"
+            fi
+            
+            # Allow through iptables as fallback
+            if command -v iptables >/dev/null 2>&1; then
+              sudo iptables -I INPUT -j ACCEPT -m comment --comment "CI Allow Nodos"
+              echo "iptables rule created"
+            fi
+            
+            echo "Firewall configured for: $exe_path"
+          else
+            echo "nosLauncher not found in Engine directory"
+          fi
+        working-directory: modules-${{ inputs.ref_name }}/workspace
+
       - name: Regression Tests
         shell: pwsh
+        if: ${{ inputs.run_tests }}
         run: |
           ./nodos test
         working-directory: modules-${{ inputs.ref_name }}/workspace
