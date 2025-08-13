@@ -8,12 +8,6 @@ on:
       ref_name:
         required: true
         type: string
-      package_name:
-        required: true
-        type: string
-      package_version:
-        required: true
-        type: string
       publish_mode:
         type: string
         description: 'Publish Mode. Options: Publish Contents, None'
@@ -191,8 +185,6 @@ jobs:
             --workspace ../../ \
             publish --type=generic \
             --path . \
-            --name="${{ inputs.package_name }}" \
-            --version="${{ inputs.package_version }}" \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
             --publisher-name "${{ env.GH_USERNAME }}" \
