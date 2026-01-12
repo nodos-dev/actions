@@ -203,7 +203,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if (-not (Test-Path -Path ./workspace)) { New-Item -Path ./workspace -ItemType Directory -Force | Out-Null }
-          Copy-Item -Path "${{ env.SYSTEM_NOSMAN_PATH }}" -Destination (Join-Path ./workspace "nodos.exe") -Force
+          $nosmanDestination = if ($IsWindows) { "nodos.exe" } else { "nodos" }
+          $nosmanDestinationPath = Join-Path ./workspace $nosmanDestination
+          Copy-Item -Path "${{ env.SYSTEM_NOSMAN_PATH }}" -Destination $nosmanDestinationPath -Force
+          if (-not $IsWindows) { & chmod +x $nosmanDestinationPath }
           Push-Location ./workspace
           & ${{ env.SYSTEM_NOSMAN_PATH }} init --reinit
           & ${{ env.SYSTEM_NOSMAN_PATH }} dev init --toolchain cmake
