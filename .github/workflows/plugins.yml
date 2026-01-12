@@ -361,7 +361,7 @@ jobs:
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
 
       - name: Publish (All)
-        if: ${{ inputs.publish_mode == 'All Modules' }}
+        if: ${{ inputs.publish_mode == 'All Plugins' }}
         shell: bash
         run: |
           if [ "${{ inputs.sign_binaries }}" == "true" ]; then
