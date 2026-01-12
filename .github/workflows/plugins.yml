@@ -1,0 +1,400 @@
+# Copyright MediaZ Teknoloji A.S. All Rights Reserved.
+
+name: Nodos Plugins
+
+on:
+  workflow_call:
+    secrets:
+      CI_TOKEN:
+        required: true
+      SENTRY_TOKEN:
+        required: false
+        description: 'If provided, PDBs will be uploaded to Sentry'
+    inputs:
+      ref_name:
+        required: true
+        type: string
+      publish_mode:
+        type: string
+        description: 'Publish Mode. Options: Only Changed, All Plugins, None'
+        default: 'Only Changed'
+      nodos_sdk_version:
+        description: 'Nodos SDK plugin version (nodos.sdk.plugin); leave empty when using nodos_version'
+        required: false
+        default: ''
+        type: string
+      nodos_version:
+        description: 'Legacy Nodos version (nosman get --version); leave empty when using nodos_sdk_version'
+        required: false
+        default: ''
+        type: string
+      clean:
+        description: 'Clean build'
+        required: false
+        default: false
+        type: boolean
+      build_number:
+        description: 'Build number'
+        required: false
+        default: '0'
+        type: string
+      sign_binaries:
+        description: 'Sign binaries'
+        required: false
+        default: false
+        type: boolean
+      release_notes:
+        description: 'Release notes'
+        required: false
+        default: ''
+        type: string
+      last_build_tag:
+        description: 'Last Build Tag'
+        required: false
+        default: ''
+        type: string
+      pre_config_command:
+        description: 'Execute a command before configuration steps'
+        required: false
+        default: ''
+        type: string
+      linux:
+        description: 'Release for Linux'
+        required: false
+        default: true
+        type: boolean
+      windows:
+        description: 'Release for Windows'
+        required: false
+        default: true
+        type: boolean
+      run_tests:
+        description: 'Run tests'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  prepare-strategy:
+    name: Prepare Strategy
+    runs-on: self-hosted
+    outputs:
+      runner-list: ${{ steps.prepare-step.outputs.runner-list }}
+    steps:
+      - name: Prepare Runner List
+        id: prepare-step
+        shell: bash
+        run: |
+          runner_list=$(python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
+            --workflow-input-linux ${{ inputs.linux }} \
+            --workflow-input-windows ${{ inputs.windows }} \
+            --sign ${{ inputs.sign_binaries }} \
+            --ref-name ${{ inputs.ref_name }} \
+            --event-name "workflow_call")
+          echo Runners: $runner_list
+          echo "runner-list=$runner_list" >> $GITHUB_OUTPUT
+
+  build:
+    strategy:
+      matrix:
+        runner: ${{ fromJson(needs.prepare-strategy.outputs.runner-list) }}
+      fail-fast: false
+    name: "${{ inputs.ref_name }} - ${{ inputs.build_number }} (${{ matrix.runner[0] }}) ${{ (inputs.publish_mode != 'None' && ' (Publishing)') || '' }} ${{ (inputs.publish_mode == 'None' && ' (Build Only)') || '' }}"
+    needs: prepare-strategy
+    runs-on: ${{ matrix.runner }}
+
+    env:
+      GH_USERNAME: "nodos-bot"
+      GIT_EMAIL: "bot@nodos.dev"
+      GH_TOKEN: ${{ secrets.CI_TOKEN }}
+      RUST_BACKTRACE: 1
+
+    steps:
+      - name: Setup Environment Variables
+        run: |
+          if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
+            echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
+          else
+            echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
+            echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Update Git Credentials
+        continue-on-error: true
+        shell: bash
+        run: |
+          git credential-manager github login --username ${{ env.GH_USERNAME }} --token ${{ secrets.CI_TOKEN }} --force
+
+      - name: Clean Build
+        shell: pwsh
+        if: ${{ inputs.clean }}
+        run: |
+          if (Test-Path -Path ./plugins-${{ inputs.ref_name }}) { Remove-Item -Path ./plugins-${{ inputs.ref_name }} -Recurse -Force }
+
+      - name: Setup Work Folder
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -Path ./plugins-${{ inputs.ref_name }})) { New-Item -Path ./plugins-${{ inputs.ref_name }} -ItemType Directory -Force }
+
+      - name: Validate Nodos Inputs
+        shell: pwsh
+        run: |
+          if (-not [string]::IsNullOrEmpty("${{ inputs.nodos_sdk_version }}") -and -not [string]::IsNullOrEmpty("${{ inputs.nodos_version }}")) {
+            throw "Set only one of nodos_sdk_version or nodos_version."
+          }
+        working-directory: plugins-${{ inputs.ref_name }}
+
+      - name: Ensure Nosman
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $nosmanPath = "${{ env.SYSTEM_NOSMAN_PATH }}"
+          $nosmanDir = Split-Path -Parent $nosmanPath
+          if (-not (Test-Path -Path $nosmanDir)) { New-Item -Path $nosmanDir -ItemType Directory -Force | Out-Null }
+
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/nodos-dev/workspace/releases/latest" -Headers @{ "User-Agent" = "nodos-ci" }
+          if (-not $release.tag_name) { throw "Latest release tag not found." }
+          $latestVersion = $release.tag_name
+          if ($latestVersion -match "(\d+\.\d+\.\d+)") { $latestVersion = $Matches[1] }
+
+          $currentVersion = $null
+          if (Test-Path -Path $nosmanPath) {
+            $versionOutput = & $nosmanPath --version 2>$null
+            if ($versionOutput -match "(\d+\.\d+\.\d+)") { $currentVersion = $Matches[1] }
+          }
+
+          function Compare-SemVer([string]$a, [string]$b) {
+            $aParts = $a.Split('.')
+            $bParts = $b.Split('.')
+            for ($i = 0; $i -lt 3; $i++) {
+              $aVal = [int]($aParts[$i] ?? 0)
+              $bVal = [int]($bParts[$i] ?? 0)
+              if ($aVal -lt $bVal) { return -1 }
+              if ($aVal -gt $bVal) { return 1 }
+            }
+            return 0
+          }
+
+          $needsUpdate = $true
+          if ($currentVersion) {
+            if ((Compare-SemVer $currentVersion $latestVersion) -ge 0) { $needsUpdate = $false }
+          }
+
+          if (-not $needsUpdate) {
+            Write-Host "nosman is up to date ($currentVersion)."
+            exit 0
+          }
+
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+          $archToken = switch ($arch) {
+            ([System.Runtime.InteropServices.Architecture]::X64)   { "x86_64" }
+            ([System.Runtime.InteropServices.Architecture]::Arm64) { "aarch64" }
+            default { "" }
+          }
+          if ([string]::IsNullOrEmpty($archToken)) {
+            throw "Unsupported architecture for nosman download: $arch"
+          }
+
+          $osToken = if ($IsWindows) { "windows" } else { "linux" }
+          $assetName = "nosman-$osToken-$archToken"
+          if ($IsWindows) { $assetName = "$assetName.exe" }
+          $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
+          if (-not $asset) {
+            $available = ($release.assets | ForEach-Object { $_.name }) -join ", "
+            throw "Asset $assetName not found in latest release. Available assets: $available"
+          }
+          Write-Host "Downloading $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $nosmanPath
+          if (-not $IsWindows) { chmod +x $nosmanPath }
+        shell: pwsh
+        working-directory: plugins-${{ inputs.ref_name }}
+
+      - name: Setup Nodos Workspace
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path -Path ./workspace)) { New-Item -Path ./workspace -ItemType Directory -Force | Out-Null }
+          Push-Location ./workspace
+          & ${{ env.SYSTEM_NOSMAN_PATH }} init
+          & ${{ env.SYSTEM_NOSMAN_PATH }} dev init --toolchain cmake
+          Pop-Location
+        shell: pwsh
+        working-directory: plugins-${{ inputs.ref_name }}
+
+      - name: Setup Legacy Nodos Version
+        if: ${{ inputs.nodos_version != '' }}
+        run: |
+          Push-Location ./workspace
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}"
+          Pop-Location
+        shell: pwsh
+        working-directory: plugins-${{ inputs.ref_name }}
+
+      - name: Install Nodos SDK Plugin
+        if: ${{ inputs.nodos_sdk_version != '' && inputs.nodos_version == '' }}
+        run: |
+          Push-Location ./workspace
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} install nodos.sdk.plugin "${{ inputs.nodos_sdk_version }}" --relaxed
+          Pop-Location
+        shell: pwsh
+        working-directory: plugins-${{ inputs.ref_name }}
+
+      - name: Checkout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path -Path ./plugins-repo)) {
+            git clone --branch ${{ inputs.ref_name }} --depth 1 https://github.com/${{ github.repository }}.git --recurse-submodule --shallow-submodules ./plugins-repo
+          }
+          cd ./plugins-repo
+          git fetch origin
+          git fetch --tags
+          git clean -ffd
+          git checkout ${{ github.sha }}
+          git reset --hard
+          git submodule update --force --recursive --init
+          git status
+        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module
+
+      - name: Setup Git
+        run: |
+          git config user.email "${{ env.GIT_EMAIL }}"
+          git config user.name "${{ env.GH_USERNAME }}"
+        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+  
+      - name: Update Nosman Cache
+        shell: pwsh
+        run: |
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
+        working-directory: plugins-${{ inputs.ref_name }}/workspace
+
+      - name: Pre-Configure
+        shell: pwsh
+        run: |
+          ${{inputs.pre_config_command}}
+        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S ./Toolchain/CMake -B ../Project -DCMAKE_BUILD_TYPE=Release
+        working-directory: plugins-${{ inputs.ref_name }}/workspace
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build ../Project --config Release -j 8
+        working-directory: plugins-${{ inputs.ref_name }}/workspace
+
+      - name: Regression Tests
+        shell: pwsh
+        if: ${{ inputs.run_tests }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          
+          # Windows-specific firewall setup
+          if ("${{ matrix.runner[0] }}" -eq "Windows") {
+            $ExePath = (Get-ChildItem -Path ./Engine -Filter "nosLauncher.exe" -Recurse | Select-Object -First 1).FullName
+            if ($ExePath) {
+              # Remove existing rules if they exist
+              Remove-NetFirewallRule -DisplayName "CI Allow Nodos Inbound" -ErrorAction SilentlyContinue
+              Remove-NetFirewallRule -DisplayName "CI Allow Nodos Outbound" -ErrorAction SilentlyContinue
+              
+              # Create new firewall rules
+              New-NetFirewallRule -DisplayName "CI Allow Nodos Inbound" -Direction Inbound -Program $ExePath -Action Allow -Profile Any -Enabled True
+              New-NetFirewallRule -DisplayName "CI Allow Nodos Outbound" -Direction Outbound -Program $ExePath -Action Allow -Profile Any -Enabled True
+              Write-Host "Firewall rules created for: $ExePath"
+            } else {
+              Write-Host "Warning: nosLauncher.exe not found in Engine directory"
+            }
+          }
+          
+          # Run tests
+          Write-Host "Running regression tests..."
+          ./nodos test
+          
+          # Cleanup firewall rules on Windows
+          if ("${{ matrix.runner[0] }}" -eq "Windows") {
+            Remove-NetFirewallRule -DisplayName "CI Allow Nodos Inbound" -ErrorAction SilentlyContinue
+            Remove-NetFirewallRule -DisplayName "CI Allow Nodos Outbound" -ErrorAction SilentlyContinue
+            Write-Host "Firewall rules cleaned up"
+          }
+        working-directory: plugins-${{ inputs.ref_name }}/workspace
+
+      - name: Sign Binaries
+        if: ${{ inputs.publish_mode != 'None' && inputs.sign_binaries }}
+        run: |
+          cd $MEDIAZ_SCRIPTS_DIR
+          python sign_module.py "${{ github.workspace }}/plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo"
+        shell: bash
+
+      - name: Upload PDBs
+        if: ${{ inputs.publish_mode != 'None' && matrix.runner[0] == 'Windows'}}
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrEmpty("${{ secrets.SENTRY_TOKEN }}")) {
+            echo "SENTRY_TOKEN is not provided. Skipping PDB upload."
+          } else {
+            sentry-cli login --auth-token="${{ secrets.SENTRY_TOKEN }}"
+            Get-ChildItem -Path . -Recurse -Filter "*.pdb" | ForEach-Object {
+              sentry-cli debug-files upload -o mediaz-teknoloji -p nodos $_.FullName
+            }
+          }
+        working-directory: plugins-${{ inputs.ref_name }}/
+
+      - name: Publish (Changed)
+        if: ${{ inputs.publish_mode == 'Only Changed' }}
+        shell: bash
+        run: |
+          if [ "${{ inputs.sign_binaries }}" == "true" ]; then
+            release_notes="${{ inputs.release_notes }}
+            Signed Release"
+          else
+            release_notes="${{ inputs.release_notes }}
+            Unsigned Release"
+          fi
+
+          if [ -z "${{inputs.last_build_tag}}" ]; then
+            last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${{ env.TAG_NAME_PREFIX }}-*" | head -n 1)
+          else
+            last_build_tag="${{inputs.last_build_tag}}"
+          fi
+          echo "Last build tag is $last_build_tag"
+
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
+            --workspace ../../ \
+            publish-batch \
+            --repo-path . \
+            --compare-with="$last_build_tag" \
+            --vendor Nodos \
+            --version-suffix ".b${{ inputs.build_number }}" \
+            --verbose \
+            --publisher-name "${{ env.GH_USERNAME }}" \
+            --publisher-email "${{ env.GIT_EMAIL }}" \
+            --tag "${{ inputs.ref_name }}" \
+            --release-notes "$release_notes" \
+        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+
+      - name: Publish (All)
+        if: ${{ inputs.publish_mode == 'All Modules' }}
+        shell: bash
+        run: |
+          if [ "${{ inputs.sign_binaries }}" == "true" ]; then
+            release_notes="${{ inputs.release_notes }}
+            Signed Release"
+          else
+            release_notes="${{ inputs.release_notes }}
+            Unsigned Release"
+          fi
+
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$release_notes" --version-check=none
+        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+      
+      - name: Tag
+        if: ${{ inputs.publish_mode != 'None' }}
+        run: |
+          git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
+          git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
+        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
