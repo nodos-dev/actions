@@ -18,13 +18,8 @@ on:
         type: string
         description: 'Publish Mode. Options: Only Changed, All Plugins, None'
         default: 'Only Changed'
-      nodos_sdk_version:
-        description: 'Nodos SDK plugin version (nodos.sdk.plugin); leave empty when using nodos_version'
-        required: false
-        default: ''
-        type: string
       nodos_version:
-        description: 'Legacy Nodos version (nosman get --version); leave empty when using nodos_sdk_version'
+        description: 'Legacy Nodos version (nosman get --version)'
         required: false
         default: ''
         type: string
@@ -140,14 +135,6 @@ jobs:
         run: |
           if (-not (Test-Path -Path ./plugins-${{ inputs.ref_name }})) { New-Item -Path ./plugins-${{ inputs.ref_name }} -ItemType Directory -Force }
 
-      - name: Validate Nodos Inputs
-        shell: pwsh
-        run: |
-          if (-not [string]::IsNullOrEmpty("${{ inputs.nodos_sdk_version }}") -and -not [string]::IsNullOrEmpty("${{ inputs.nodos_version }}")) {
-            throw "Set only one of nodos_sdk_version or nodos_version."
-          }
-        working-directory: plugins-${{ inputs.ref_name }}
-
       - name: Ensure Nosman
         run: |
           $ErrorActionPreference = 'Stop'
@@ -228,15 +215,6 @@ jobs:
         run: |
           Push-Location ./workspace
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}"
-          Pop-Location
-        shell: pwsh
-        working-directory: plugins-${{ inputs.ref_name }}
-
-      - name: Install Nodos SDK Plugin
-        if: ${{ inputs.nodos_sdk_version != '' && inputs.nodos_version == '' }}
-        run: |
-          Push-Location ./workspace
-          ./${{ env.NOSMAN_EXECUTABLE_NAME }} install nodos.sdk.plugin "${{ inputs.nodos_sdk_version }}" --relaxed
           Pop-Location
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
