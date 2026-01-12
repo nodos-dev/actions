@@ -206,6 +206,7 @@ jobs:
           Push-Location ./workspace
           & ${{ env.SYSTEM_NOSMAN_PATH }} init
           & ${{ env.SYSTEM_NOSMAN_PATH }} dev init --toolchain cmake
+          if (-not (Test-Path -Path ./Module)) { New-Item -Path ./Module -ItemType Directory -Force | Out-Null }
           Pop-Location
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
