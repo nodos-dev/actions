@@ -204,7 +204,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           if (-not (Test-Path -Path ./workspace)) { New-Item -Path ./workspace -ItemType Directory -Force | Out-Null }
           Push-Location ./workspace
-          & ${{ env.SYSTEM_NOSMAN_PATH }} init
+          & ${{ env.SYSTEM_NOSMAN_PATH }} init --reinit
           & ${{ env.SYSTEM_NOSMAN_PATH }} dev init --toolchain cmake
           if (-not (Test-Path -Path ./Module)) { New-Item -Path ./Module -ItemType Directory -Force | Out-Null }
           Pop-Location
