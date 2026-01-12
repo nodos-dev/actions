@@ -68,6 +68,11 @@ on:
         required: false
         default: false
         type: boolean
+      version_check:
+        description: 'Version check mode for publishing (none, strict, loose)'
+        required: false
+        default: 'strict'
+        type: string
 
 jobs:
   prepare-strategy:
@@ -357,6 +362,7 @@ jobs:
             --publisher-name "${{ env.GH_USERNAME }}" \
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
+            --version-check ${{ inputs.version_check }} \
             --release-notes "$release_notes" \
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
 
