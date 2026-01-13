@@ -16,8 +16,13 @@ on:
         type: string
       publish_mode:
         type: string
-        description: 'Publish Mode. Options: Only Changed, All Plugins, None'
-        default: 'Only Changed'
+        description: 'Publish Mode. Options: If Changed, Force, None'
+        default: 'If Changed'
+      plugin_name:
+        description: 'Publish only this plugin (single release). Leave empty to publish normally.'
+        required: false
+        default: ''
+        type: string
       nodos_version:
         description: 'Legacy Nodos version (nosman get --version)'
         required: false
@@ -43,11 +48,6 @@ on:
         required: false
         default: ''
         type: string
-      last_build_tag:
-        description: 'Last Build Tag'
-        required: false
-        default: ''
-        type: string
       pre_config_command:
         description: 'Execute a command before configuration steps'
         required: false
@@ -68,11 +68,6 @@ on:
         required: false
         default: false
         type: boolean
-      version_check:
-        description: 'Version check mode for publishing (none, strict, loose)'
-        required: false
-        default: 'strict'
-        type: string
 
 jobs:
   prepare-strategy:
@@ -115,11 +110,9 @@ jobs:
           if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
           else
             echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -258,6 +251,29 @@ jobs:
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
+      - name: Resolve Single Plugin Directory
+        if: ${{ inputs.plugin_name != '' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgName = "${{ inputs.plugin_name }}"
+          $listOutput = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} list --local --package-name "$pkgName"
+          $cleanLines = $listOutput | ForEach-Object { $_ -replace "\x1B\[[0-9;]*[A-Za-z]", "" }
+          $entries = @()
+          foreach ($line in $cleanLines) {
+            if ($line -match '^\s*(\d+\.\d+\.\d+(?:[-+.\w]*)?)\s+\((.+)\)\s*$') {
+              $entries += [pscustomobject]@{ Version = $Matches[1]; Path = $Matches[2] }
+            }
+          }
+          if ($entries.Count -eq 0) { throw "No local package found for $pkgName" }
+          $version = $entries[-1].Version
+          $infoJson = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} info "$pkgName" "$version"
+          $info = $infoJson | Out-String | ConvertFrom-Json
+          if (-not $info.manifest_path) { throw "manifest_path not found for $pkgName $version" }
+          $moduleDir = Split-Path -Parent $info.manifest_path
+          "MODULE_DIRS=$moduleDir" >> $env:GITHUB_ENV
+        working-directory: plugins-${{ inputs.ref_name }}/workspace
+
       - name: Pre-Configure
         shell: pwsh
         run: |
@@ -267,7 +283,12 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          cmake -S ./Toolchain/CMake -B ../Project -DCMAKE_BUILD_TYPE=Release
+          $cmakeArgs = @("-S", "./Toolchain/CMake", "-B", "../Project", "-DCMAKE_BUILD_TYPE=Release")
+          if ("${{ inputs.plugin_name }}" -ne "") {
+            if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for single plugin build." }
+            $cmakeArgs += "-DMODULE_DIRS=$env:MODULE_DIRS"
+          }
+          cmake @cmakeArgs
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Build
@@ -332,8 +353,8 @@ jobs:
           }
         working-directory: plugins-${{ inputs.ref_name }}/
 
-      - name: Publish (Changed)
-        if: ${{ inputs.publish_mode == 'Only Changed' }}
+      - name: Publish (If Changed)
+        if: ${{ inputs.publish_mode == 'If Changed' }}
         shell: bash
         run: |
           if [ "${{ inputs.sign_binaries }}" == "true" ]; then
@@ -344,30 +365,27 @@ jobs:
             Unsigned Release"
           fi
 
-          if [ -z "${{inputs.last_build_tag}}" ]; then
-            last_build_tag=$(git for-each-ref --sort=-v:refname --format='%(refname:short)' "refs/tags/${{ env.TAG_NAME_PREFIX }}-*" | head -n 1)
-          else
-            last_build_tag="${{inputs.last_build_tag}}"
+          packages_args=()
+          if [ -n "${{ inputs.plugin_name }}" ]; then
+            packages_args+=(--packages "${{ inputs.plugin_name }}")
           fi
-          echo "Last build tag is $last_build_tag"
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
             --workspace ../../ \
             publish-batch \
-            --repo-path . \
-            --compare-with="$last_build_tag" \
+            --directory . \
+            "${packages_args[@]}" \
             --vendor Nodos \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
             --publisher-name "${{ env.GH_USERNAME }}" \
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
-            --version-check ${{ inputs.version_check }} \
             --release-notes "$release_notes" \
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
 
-      - name: Publish (All)
-        if: ${{ inputs.publish_mode == 'All Plugins' }}
+      - name: Publish (Force)
+        if: ${{ inputs.publish_mode == 'Force' }}
         shell: bash
         run: |
           if [ "${{ inputs.sign_binaries }}" == "true" ]; then
@@ -378,12 +396,23 @@ jobs:
             Unsigned Release"
           fi
 
-          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} --workspace ../../ publish-batch --repo-path . --vendor=Nodos --version-suffix ".b${{ inputs.build_number }}" --verbose --publisher-name "${{ env.GH_USERNAME }}" --publisher-email "${{ env.GIT_EMAIL }}" --tag "${{ inputs.ref_name }}" --release-notes "$release_notes" --version-check=none
+          packages_args=()
+          if [ -n "${{ inputs.plugin_name }}" ]; then
+            packages_args+=(--packages "${{ inputs.plugin_name }}")
+          fi
+
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
+            --workspace ../../ \
+            publish-batch \
+            --directory . \
+            "${packages_args[@]}" \
+            --vendor=Nodos \
+            --version-suffix ".b${{ inputs.build_number }}" \
+            --verbose \
+            --publisher-name "${{ env.GH_USERNAME }}" \
+            --publisher-email "${{ env.GIT_EMAIL }}" \
+            --tag "${{ inputs.ref_name }}" \
+            --release-notes "$release_notes" \
+            --publish-all
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
       
-      - name: Tag
-        if: ${{ inputs.publish_mode != 'None' }}
-        run: |
-          git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
-          git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
-        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
