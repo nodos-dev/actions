@@ -290,6 +290,8 @@ jobs:
           if ("${{ inputs.plugin_name }}" -ne "") {
             if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for single plugin build." }
             $cmakeArgs += "-DMODULE_DIRS=$env:MODULE_DIRS"
+          } else {
+            $cmakeArgs += "-DMODULE_DIRS='.'"
           }
           cmake @cmakeArgs
         working-directory: plugins-${{ inputs.ref_name }}/workspace
