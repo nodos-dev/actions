@@ -256,6 +256,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $workspaceRoot = (Resolve-Path .).Path
           $pkgName = "${{ inputs.plugin_name }}"
           $listOutput = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} list --local --package-name "$pkgName"
           $cleanLines = $listOutput | ForEach-Object { $_ -replace "\x1B\[[0-9;]*[A-Za-z]", "" }
@@ -271,7 +272,9 @@ jobs:
           $info = $infoJson | Out-String | ConvertFrom-Json
           if (-not $info.manifest_path) { throw "manifest_path not found for $pkgName $version" }
           $moduleDir = Split-Path -Parent $info.manifest_path
-          "MODULE_DIRS=$moduleDir" >> $env:GITHUB_ENV
+          $relativeModuleDir = [System.IO.Path]::GetRelativePath($workspaceRoot, $moduleDir)
+          $relativeModuleDir = $relativeModuleDir -replace '\\', '/'
+          "MODULE_DIRS=$relativeModuleDir" >> $env:GITHUB_ENV
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Pre-Configure
