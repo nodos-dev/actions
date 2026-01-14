@@ -286,20 +286,19 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          $cmakeArgs = @("-S", "./Toolchain/CMake", "-B", "../Project", "-DCMAKE_BUILD_TYPE=Release")
           if ("${{ inputs.plugin_name }}" -ne "") {
             if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for single plugin build." }
-            $cmakeArgs += "-DMODULE_DIRS=$env:MODULE_DIRS"
+            $pluginArgs = @("--plugin-dirs", $env:MODULE_DIRS)
           } else {
-            $cmakeArgs += "-DMODULE_DIRS='.'"
+            $pluginArgs = @("--plugin-dirs", ".")
           }
-          cmake @cmakeArgs
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev gen --language-tool cpp/cmake --project-folder ../Project @pluginArgs -- -DCMAKE_BUILD_TYPE=Release
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Build
         shell: pwsh
         run: |
-          cmake --build ../Project --config Release -j 8
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev build --language-tool cpp/cmake --project-folder ../Project -- --config Release
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Regression Tests
