@@ -213,7 +213,7 @@ jobs:
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
 
-      - name: Setup Legacy Nodos Version
+      - name: Setup Nodos Workspace (Legacy)
         if: ${{ inputs.nodos_version != '' }}
         run: |
           Push-Location ./workspace
@@ -298,7 +298,7 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev build --language-tool cpp/cmake --project-folder ../Project -- --config Release
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev build --language-tool cpp/cmake --project-folder ../Project --config Release
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Regression Tests
