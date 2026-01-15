@@ -18,8 +18,8 @@ on:
         type: string
         description: 'Publish Mode. Options: If Changed, Force, None'
         default: 'If Changed'
-      plugin_name:
-        description: 'Publish only this plugin (single release). Leave empty to publish normally.'
+      plugin_names:
+        description: 'Publish only these plugins (semicolon-delimited)'
         required: false
         default: ''
         type: string
@@ -69,8 +69,8 @@ on:
         default: false
         type: boolean
       version_check:
-        description: 'Version Check'
         required: true
+        description: 'Version Check'
         default: 'strict'
         type: choice
         options:
@@ -260,30 +260,36 @@ jobs:
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
-      - name: Resolve Single Plugin Directory
-        if: ${{ inputs.plugin_name != '' }}
+      - name: Resolve Plugin Directories
+        if: ${{ inputs.plugin_names != '' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $workspaceRoot = (Resolve-Path .).Path
-          $pkgName = "${{ inputs.plugin_name }}"
-          $listOutput = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} list --local --package-name "$pkgName"
-          $cleanLines = $listOutput | ForEach-Object { $_ -replace "\x1B\[[0-9;]*[A-Za-z]", "" }
-          $entries = @()
-          foreach ($line in $cleanLines) {
-            if ($line -match '^\s*(\d+\.\d+\.\d+(?:[-+.\w]*)?)\s+\((.+)\)\s*$') {
-              $entries += [pscustomobject]@{ Version = $Matches[1]; Path = $Matches[2] }
+          $pkgNames = "${{ inputs.plugin_names }}" -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+          if ($pkgNames.Count -eq 0) { throw "plugin_names is set but no valid plugin name was provided." }
+          $moduleDirs = @()
+          foreach ($pkgName in $pkgNames) {
+            $listOutput = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} list --local --package-name "$pkgName"
+            $cleanLines = $listOutput | ForEach-Object { $_ -replace "\x1B\[[0-9;]*[A-Za-z]", "" }
+            $entries = @()
+            foreach ($line in $cleanLines) {
+              if ($line -match '^\s*(\d+\.\d+\.\d+(?:[-+.\w]*)?)\s+\((.+)\)\s*$') {
+                $entries += [pscustomobject]@{ Version = $Matches[1]; Path = $Matches[2] }
+              }
             }
+            if ($entries.Count -eq 0) { throw "No local package found for $pkgName" }
+            $version = $entries[-1].Version
+            $infoJson = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} info "$pkgName" "$version"
+            $info = $infoJson | Out-String | ConvertFrom-Json
+            if (-not $info.manifest_path) { throw "manifest_path not found for $pkgName $version" }
+            $moduleDir = Split-Path -Parent $info.manifest_path
+            $relativeModuleDir = [System.IO.Path]::GetRelativePath($workspaceRoot, $moduleDir)
+            $relativeModuleDir = $relativeModuleDir -replace '\\', '/'
+            $moduleDirs += $relativeModuleDir
           }
-          if ($entries.Count -eq 0) { throw "No local package found for $pkgName" }
-          $version = $entries[-1].Version
-          $infoJson = & ./${{ env.NOSMAN_EXECUTABLE_NAME }} info "$pkgName" "$version"
-          $info = $infoJson | Out-String | ConvertFrom-Json
-          if (-not $info.manifest_path) { throw "manifest_path not found for $pkgName $version" }
-          $moduleDir = Split-Path -Parent $info.manifest_path
-          $relativeModuleDir = [System.IO.Path]::GetRelativePath($workspaceRoot, $moduleDir)
-          $relativeModuleDir = $relativeModuleDir -replace '\\', '/'
-          "MODULE_DIRS=$relativeModuleDir" >> $env:GITHUB_ENV
+          $moduleDirsValue = ($moduleDirs | Sort-Object -Unique) -join ';'
+          "MODULE_DIRS=$moduleDirsValue" >> $env:GITHUB_ENV
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Pre-Configure
@@ -295,8 +301,8 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          if ("${{ inputs.plugin_name }}" -ne "") {
-            if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for single plugin build." }
+          if ("${{ inputs.plugin_names }}" -ne "") {
+            if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for plugin build." }
             $pluginArgs = @("--plugin-dirs", $env:MODULE_DIRS)
           } else {
             $pluginArgs = @("--plugin-dirs", ".")
@@ -379,8 +385,14 @@ jobs:
           fi
 
           packages_args=()
-          if [ -n "${{ inputs.plugin_name }}" ]; then
-            packages_args+=(--packages "${{ inputs.plugin_name }}")
+          if [ -n "${{ inputs.plugin_names }}" ]; then
+            IFS=';' read -ra pkg_array <<< "${{ inputs.plugin_names }}"
+            for pkg in "${pkg_array[@]}"; do
+              pkg_trimmed="$(printf '%s' "$pkg" | xargs)"
+              if [ -n "$pkg_trimmed" ]; then
+                packages_args+=(--packages "$pkg_trimmed")
+              fi
+            done
           fi
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
@@ -411,8 +423,14 @@ jobs:
           fi
 
           packages_args=()
-          if [ -n "${{ inputs.plugin_name }}" ]; then
-            packages_args+=(--packages "${{ inputs.plugin_name }}")
+          if [ -n "${{ inputs.plugin_names }}" ]; then
+            IFS=';' read -ra pkg_array <<< "${{ inputs.plugin_names }}"
+            for pkg in "${pkg_array[@]}"; do
+              pkg_trimmed="$(printf '%s' "$pkg" | xargs)"
+              if [ -n "$pkg_trimmed" ]; then
+                packages_args+=(--packages "$pkg_trimmed")
+              fi
+            done
           fi
 
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
