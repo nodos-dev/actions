@@ -68,6 +68,15 @@ on:
         required: false
         default: false
         type: boolean
+      version_check:
+        description: 'Version Check'
+        required: true
+        default: 'strict'
+        type: choice
+        options:
+          - none
+          - loose
+          - strict
 
 jobs:
   prepare-strategy:
@@ -386,6 +395,7 @@ jobs:
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
             --release-notes "$release_notes" \
+            --version-check ${{ inputs.version_check }}
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
 
       - name: Publish (Force)
@@ -417,6 +427,7 @@ jobs:
             --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
             --release-notes "$release_notes" \
-            --publish-all
+            --publish-all \
+            --version-check ${{ inputs.version_check }}
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
       
