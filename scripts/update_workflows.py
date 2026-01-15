@@ -13,8 +13,6 @@ import os
 import sys
 import subprocess
 import tempfile
-import shutil
-from pathlib import Path
 
 
 def run_command(cmd, cwd=None, check=True):
@@ -35,7 +33,7 @@ def run_command(cmd, cwd=None, check=True):
     return result
 
 
-def get_repo_config(repo_path, branch):
+def get_repo_config(repo_path):
     """
     Fetch repository-specific configuration from .nodos/workflow_config.json
     in the plugin repository.
@@ -57,7 +55,7 @@ def get_repo_config(repo_path, branch):
             config = json.load(f)
             # Merge with defaults
             return {**default_config, **config}
-    except Exception as e:
+    except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError) as e:
         print(f"  Error reading config file: {e}, using defaults")
         return default_config
 
@@ -106,11 +104,26 @@ def update_repository_workflow(repo, branch, workflow_template, token, dry_run=F
         repo_dir = os.path.join(tmpdir, 'repo')
         
         # Clone the repository
-        clone_url = f"https://{token}@github.com/{repo}.git"
+        # Note: Token is passed via environment variable to avoid exposure in logs
+        clone_url = f"https://github.com/{repo}.git"
         print(f"  Cloning repository...")
-        result = run_command(
-            f"git clone --depth 1 --branch {branch} {clone_url} {repo_dir}",
-            check=False
+        
+        # Configure git credentials temporarily
+        env = os.environ.copy()
+        env['GIT_TERMINAL_PROMPT'] = '0'
+        
+        result = subprocess.run(
+            [
+                'git', 'clone',
+                '--depth', '1',
+                '--branch', branch,
+                f'https://x-access-token:{token}@github.com/{repo}.git',
+                repo_dir
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env
         )
         
         if result.returncode != 0:
@@ -118,7 +131,7 @@ def update_repository_workflow(repo, branch, workflow_template, token, dry_run=F
             return False
         
         # Get repository-specific configuration
-        repo_config = get_repo_config(repo_dir, branch)
+        repo_config = get_repo_config(repo_dir)
         print(f"  Config: {repo_config}")
         
         # Apply template substitutions
