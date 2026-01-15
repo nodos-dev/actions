@@ -31,6 +31,8 @@ jobs:
   update-workflows:
     name: Update Plugin Repository Workflows
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout actions repository
