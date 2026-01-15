@@ -18,6 +18,10 @@ on:
         type: string
         description: 'Publish Mode. Options: If Changed, Force, None'
         default: 'If Changed'
+      version_check:
+        description: 'Version Check'
+        default: 'strict'
+        type: string
       plugin_names:
         description: 'Publish only these plugins (semicolon-delimited)'
         required: false
@@ -68,15 +72,6 @@ on:
         required: false
         default: false
         type: boolean
-      version_check:
-        required: true
-        description: 'Version Check'
-        default: 'strict'
-        type: choice
-        options:
-          - none
-          - loose
-          - strict
 
 jobs:
   prepare-strategy:
