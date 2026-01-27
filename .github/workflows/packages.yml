@@ -116,7 +116,7 @@ jobs:
         if: ${{ inputs.nodos_sdk_version == '' }}
         run: |
           if (-not (Test-Path -Path ./workspace)) {
-            ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get
+            ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --name nodos --version latest
           } else {
             cd ./workspace
             ./${{ env.NOSMAN_EXECUTABLE_NAME }} update
@@ -128,7 +128,7 @@ jobs:
       - name: Setup Nodos Workspace (Specific Version)
         if: ${{ inputs.nodos_sdk_version != '' }}
         run: |
-          ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --version "${{ inputs.nodos_sdk_version }}"
+          ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --version "${{ inputs.nodos_sdk_version }}" --name nodos
         shell: pwsh
         working-directory: packages-${{ inputs.ref_name }}
 
