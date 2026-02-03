@@ -124,7 +124,7 @@ jobs:
       - name: Setup Nodos Workspace (Specific Version)
         if: ${{ inputs.nodos_sdk_version != '' }}
         run: |
-          ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --version "${{ inputs.nodos_sdk_version }}"
+          ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --version "${{ inputs.nodos_sdk_version }}" -y --name nodos
         shell: pwsh
         working-directory: samples-${{ inputs.ref_name }}
 

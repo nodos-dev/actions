@@ -221,7 +221,7 @@ jobs:
         if: ${{ inputs.nodos_version != '' }}
         run: |
           Push-Location ./workspace
-          ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}"
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}" -y --name nodos
           Pop-Location
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
