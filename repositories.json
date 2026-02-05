@@ -1,0 +1,199 @@
+{
+  "repositories": [
+    {
+      "repo": "nodos-dev/audio",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/audio",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/audio",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/aja",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/aja",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/aja",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/decklink",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/decklink",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/decklink",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/display",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/display",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/display",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/mediaio",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/mediaio",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/mediaio",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/modules",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/modules",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/modules",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "mediaz/nos-sys-vulkan",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "mediaz/nos-sys-vulkan",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "mediaz/nos-sys-vulkan",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/rive",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/rive",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/rive",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/sys-device",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/sys-device",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/sys-device",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/sys-settings",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/sys-settings",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/sys-settings",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/test",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/test",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/test",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/transfer",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/transfer",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/transfer",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    },
+    {
+      "repo": "nodos-dev/webcam",
+      "branch": "dev",
+      "workflow_template": "plugin_build.yml.dev"
+    },
+    {
+      "repo": "nodos-dev/webcam",
+      "branch": "nodos-1.3",
+      "workflow_template": "plugin_build.yml.nodos-1.3"
+    },
+    {
+      "repo": "nodos-dev/webcam",
+      "branch": "nodos-1.2",
+      "workflow_template": "plugin_build.yml.nodos-1.2"
+    }
+  ]
+}
