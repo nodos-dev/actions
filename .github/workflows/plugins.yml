@@ -296,6 +296,7 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           if ("${{ inputs.plugin_names }}" -ne "") {
             if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for plugin build." }
             $pluginArgs = @("--plugin-dirs", $env:MODULE_DIRS)
@@ -303,12 +304,15 @@ jobs:
             $pluginArgs = @("--plugin-dirs", "Module")
           }
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev gen --language-tool cpp/cmake --project-folder ../Project @pluginArgs -- -DCMAKE_BUILD_TYPE=Release
+          if ($LASTEXITCODE -ne 0) { throw "Configure failed with exit code $LASTEXITCODE" }
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Build
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev build --language-tool cpp/cmake --project-folder ../Project --config Release
+          if ($LASTEXITCODE -ne 0) { throw "Build failed with exit code $LASTEXITCODE" }
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Regression Tests
