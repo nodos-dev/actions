@@ -300,7 +300,7 @@ jobs:
             if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for plugin build." }
             $pluginArgs = @("--plugin-dirs", $env:MODULE_DIRS)
           } else {
-            $pluginArgs = @("--plugin-dirs", ".")
+            $pluginArgs = @("--plugin-dirs", "Module")
           }
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev gen --language-tool cpp/cmake --project-folder ../Project @pluginArgs -- -DCMAKE_BUILD_TYPE=Release
         working-directory: plugins-${{ inputs.ref_name }}/workspace
