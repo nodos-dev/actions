@@ -280,7 +280,7 @@ jobs:
           ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
             --workspace ../../ \
             publish-batch \
-            --repo-path . \
+            --directory . \
             --compare-with="$last_build_tag" \
             --vendor Nodos \
             --version-suffix ".b${{ inputs.build_number }}" \
@@ -312,3 +312,4 @@ jobs:
           git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
           git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
         working-directory: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
+
