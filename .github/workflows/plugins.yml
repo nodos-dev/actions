@@ -297,7 +297,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if ("${{ inputs.plugin_names }}" -ne "") {
+          if ("${{ inputs.plugin_names }}" -ne "" -and [string]::IsNullOrEmpty("${{inputs.nodos_version}}")) {
             if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for plugin build." }
             $pluginArgs = @("--plugin-dirs", $env:MODULE_DIRS)
           } else {
