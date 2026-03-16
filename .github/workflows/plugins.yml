@@ -256,7 +256,7 @@ jobs:
         working-directory: plugins-${{ inputs.ref_name }}/workspace
 
       - name: Resolve Plugin Directories
-        if: ${{ inputs.plugin_names != '' }}
+        if: ${{ inputs.plugin_names != '' && inputs.nodos_version == '' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
