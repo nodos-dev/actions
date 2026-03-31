@@ -7,6 +7,9 @@ on:
     secrets:
       CI_TOKEN:
         required: true
+      NODOS_STORE_ACCESS_TOKEN:
+        required: true
+        description: 'Access token for Nodos Store authentication (publishing)'
       SENTRY_TOKEN:
         required: false
         description: 'If provided, PDBs will be uploaded to Sentry'
@@ -18,10 +21,6 @@ on:
         type: string
         description: 'Publish Mode. Options: If Changed, Force, None'
         default: 'If Changed'
-      version_check:
-        description: 'Version Check'
-        default: 'strict'
-        type: string
       plugin_names:
         description: 'Publish only these plugins (semicolon-delimited)'
         required: false
@@ -47,11 +46,6 @@ on:
         required: false
         default: false
         type: boolean
-      release_notes:
-        description: 'Release notes'
-        required: false
-        default: ''
-        type: string
       pre_config_command:
         description: 'Execute a command before configuration steps'
         required: false
@@ -106,6 +100,7 @@ jobs:
       GH_USERNAME: "nodos-bot"
       GIT_EMAIL: "bot@nodos.dev"
       GH_TOKEN: ${{ secrets.CI_TOKEN }}
+      NODOS_STORE_ACCESS_TOKEN: ${{ secrets.NODOS_STORE_ACCESS_TOKEN }}
       RUST_BACKTRACE: 1
 
     steps:
@@ -375,14 +370,6 @@ jobs:
         if: ${{ inputs.publish_mode == 'If Changed' }}
         shell: bash
         run: |
-          if [ "${{ inputs.sign_binaries }}" == "true" ]; then
-            release_notes="${{ inputs.release_notes }}
-            Signed Release"
-          else
-            release_notes="${{ inputs.release_notes }}
-            Unsigned Release"
-          fi
-
           packages_args=()
           if [ -n "${{ inputs.plugin_names }}" ]; then
             IFS=';' read -ra pkg_array <<< "${{ inputs.plugin_names }}"
@@ -399,28 +386,15 @@ jobs:
             publish-batch \
             --directory . \
             "${packages_args[@]}" \
-            --vendor Nodos \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --publisher-name "${{ env.GH_USERNAME }}" \
-            --publisher-email "${{ env.GIT_EMAIL }}" \
-            --tag "${{ inputs.ref_name }}" \
-            --release-notes "$release_notes" \
-            --version-check ${{ inputs.version_check }}
+            --tag "${{ inputs.ref_name }}"
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
 
       - name: Publish (Force)
         if: ${{ inputs.publish_mode == 'Force' }}
         shell: bash
         run: |
-          if [ "${{ inputs.sign_binaries }}" == "true" ]; then
-            release_notes="${{ inputs.release_notes }}
-            Signed Release"
-          else
-            release_notes="${{ inputs.release_notes }}
-            Unsigned Release"
-          fi
-
           packages_args=()
           if [ -n "${{ inputs.plugin_names }}" ]; then
             IFS=';' read -ra pkg_array <<< "${{ inputs.plugin_names }}"
@@ -437,14 +411,9 @@ jobs:
             publish-batch \
             --directory . \
             "${packages_args[@]}" \
-            --vendor=Nodos \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --publisher-name "${{ env.GH_USERNAME }}" \
-            --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "${{ inputs.ref_name }}" \
-            --release-notes "$release_notes" \
-            --publish-all \
-            --version-check ${{ inputs.version_check }}
+            --publish-all
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
       
