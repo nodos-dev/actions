@@ -56,9 +56,14 @@ def main():
                     win_labels.append("signer")
                 runner_list.append(win_labels)
 
-    # Check if ref_name is supported
+    # Check if ref_name is supported, with prefix matching for versioned branches
     if ref_name not in NODOS_RUNNER_SUPPORTED_REFS:
-        ref_name = NODOS_RUNNER_DEFAULT_MACHINE
+        if ref_name.startswith("nodos-1.3"):
+            ref_name = "nodos-1.3"
+        elif ref_name.startswith("nodos-1.2"):
+            ref_name = "nodos-1.2"
+        else:
+            ref_name = NODOS_RUNNER_DEFAULT_MACHINE
 
     # Add default tags
     default_tags = ['self-hosted', ref_name]
