@@ -221,7 +221,7 @@ jobs:
           }
           cd ./plugins-repo
           git fetch origin
-          git fetch --tags
+          git fetch --tags --force
           git clean -ffd
           git checkout ${{ github.sha }}
           git reset --hard
