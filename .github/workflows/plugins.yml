@@ -222,9 +222,9 @@ jobs:
           cd ./plugins-repo
           git fetch origin
           git fetch --tags --force
-          git reset --hard
           git clean -ffd
           git checkout ${{ github.sha }}
+          git reset --hard
           git submodule update --force --recursive --init
           git status
         working-directory: plugins-${{ inputs.ref_name }}/workspace/Module
