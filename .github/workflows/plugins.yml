@@ -212,6 +212,15 @@ jobs:
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
 
+      - name: Setup Nodos Workspace (Legacy)
+        if: ${{ inputs.nodos_version != '' }}
+        run: |
+          Push-Location ./workspace
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}" -y --name nodos
+          Pop-Location
+        shell: pwsh
+        working-directory: plugins-${{ inputs.ref_name }}
+
       - name: Checkout
         shell: pwsh
         run: |
