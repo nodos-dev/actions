@@ -215,8 +215,11 @@ jobs:
       - name: Setup Nodos Workspace (Legacy)
         if: ${{ inputs.nodos_version != '' }}
         run: |
+          $ErrorActionPreference = 'Stop'
           Push-Location ./workspace
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}" -y --name nodos
+          Copy-Item -Path "${{ env.SYSTEM_NOSMAN_PATH }}" -Destination "./${{ env.NOSMAN_EXECUTABLE_NAME }}" -Force
+          if (-not $IsWindows) { & chmod +x "./${{ env.NOSMAN_EXECUTABLE_NAME }}" }
           Pop-Location
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
