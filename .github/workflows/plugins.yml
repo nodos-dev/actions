@@ -220,6 +220,8 @@ jobs:
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_version }}" -y --name nodos
           Copy-Item -Path "${{ env.SYSTEM_NOSMAN_PATH }}" -Destination "./${{ env.NOSMAN_EXECUTABLE_NAME }}" -Force
           if (-not $IsWindows) { & chmod +x "./${{ env.NOSMAN_EXECUTABLE_NAME }}" }
+          Write-Host "Workspace nosman version:"
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} --version
           Pop-Location
         shell: pwsh
         working-directory: plugins-${{ inputs.ref_name }}
