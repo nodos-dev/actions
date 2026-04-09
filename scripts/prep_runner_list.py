@@ -58,9 +58,9 @@ def main():
 
     # Check if ref_name is supported, with prefix matching for versioned branches
     if ref_name not in NODOS_RUNNER_SUPPORTED_REFS:
-        if ref_name.startswith("nodos-1.3"):
+        if ref_name.startswith("nodos-1.3") or ref_name.startswith("1.3-"):
             ref_name = "nodos-1.3"
-        elif ref_name.startswith("nodos-1.2"):
+        elif ref_name.startswith("nodos-1.2") or ref_name.startswith("1.2-"):
             ref_name = "nodos-1.2"
         else:
             ref_name = NODOS_RUNNER_DEFAULT_MACHINE
