@@ -4,20 +4,27 @@ name: Modules
 
 on:
   workflow_call:
+    secrets:
+      CI_TOKEN:
+        required: true
+      NODOS_STORE_ACCESS_TOKEN:
+        required: true
+        description: 'Access token for Nodos Store authentication (publishing)'
     inputs:
       ref_name:
         required: true
         type: string
-      packages:
-        required: true
-        type: string
-        description: 'JSON-encoded list of tuples: [(package_name, package_version, package_path)]'
       publish_mode:
         type: string
-        description: 'Publish Mode. Options: Publish Contents, None'
+        description: 'Publish Mode. Options: If Changed, Force, None'
         default: 'None'
+      package_names:
+        description: 'Publish only these packages (semicolon-delimited). If empty, all discovered packages are published.'
+        required: false
+        default: ''
+        type: string
       nodos_sdk_version:
-        description: 'Nodos SDK Version'
+        description: 'Legacy Nodos version (nosman get --version)'
         required: false
         default: ''
         type: string
@@ -79,6 +86,7 @@ jobs:
       GH_USERNAME: "nodos-bot"
       GIT_EMAIL: "bot@nodos.dev"
       GH_TOKEN: ${{ secrets.CI_TOKEN }}
+      NODOS_STORE_ACCESS_TOKEN: ${{ secrets.NODOS_STORE_ACCESS_TOKEN }}
       RUST_BACKTRACE: 1
 
     steps:
@@ -87,11 +95,11 @@ jobs:
           if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{inputs.package_name}}.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
           else
             echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{inputs.package_name}}.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -112,23 +120,96 @@ jobs:
         run: |
           if (-not (Test-Path -Path ./packages-${{ inputs.ref_name }})) { New-Item -Path ./packages-${{ inputs.ref_name }} -ItemType Directory -Force }
 
-      - name: Setup Nodos Workspace (Latest)
-        if: ${{ inputs.nodos_sdk_version == '' }}
+      - name: Ensure Nosman
         run: |
-          if (-not (Test-Path -Path ./workspace)) {
-            ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --name nodos --version latest -y
-          } else {
-            cd ./workspace
-            ./${{ env.NOSMAN_EXECUTABLE_NAME }} update
-            cd ..
+          $ErrorActionPreference = 'Stop'
+          $nosmanPath = "${{ env.SYSTEM_NOSMAN_PATH }}"
+          $nosmanDir = Split-Path -Parent $nosmanPath
+          if (-not (Test-Path -Path $nosmanDir)) { New-Item -Path $nosmanDir -ItemType Directory -Force | Out-Null }
+
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/nodos-dev/workspace/releases/latest" -Headers @{ "User-Agent" = "nodos-ci" }
+          if (-not $release.tag_name) { throw "Latest release tag not found." }
+          $latestVersion = $release.tag_name
+          if ($latestVersion -match "(\d+\.\d+\.\d+)") { $latestVersion = $Matches[1] }
+
+          $currentVersion = $null
+          if (Test-Path -Path $nosmanPath) {
+            $versionOutput = & $nosmanPath --version 2>$null
+            if ($versionOutput -match "(\d+\.\d+\.\d+)") { $currentVersion = $Matches[1] }
           }
+
+          function Compare-SemVer([string]$a, [string]$b) {
+            $aParts = $a.Split('.')
+            $bParts = $b.Split('.')
+            for ($i = 0; $i -lt 3; $i++) {
+              $aVal = [int]($aParts[$i] ?? 0)
+              $bVal = [int]($bParts[$i] ?? 0)
+              if ($aVal -lt $bVal) { return -1 }
+              if ($aVal -gt $bVal) { return 1 }
+            }
+            return 0
+          }
+
+          $needsUpdate = $true
+          if ($currentVersion) {
+            if ((Compare-SemVer $currentVersion $latestVersion) -ge 0) { $needsUpdate = $false }
+          }
+
+          if (-not $needsUpdate) {
+            Write-Host "nosman is up to date ($currentVersion)."
+            exit 0
+          }
+
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+          $archToken = switch ($arch) {
+            ([System.Runtime.InteropServices.Architecture]::X64)   { "x86_64" }
+            ([System.Runtime.InteropServices.Architecture]::Arm64) { "aarch64" }
+            default { "" }
+          }
+          if ([string]::IsNullOrEmpty($archToken)) {
+            throw "Unsupported architecture for nosman download: $arch"
+          }
+
+          $osToken = if ($IsWindows) { "windows" } else { "linux" }
+          $assetName = "nosman-$osToken-$archToken"
+          if ($IsWindows) { $assetName = "$assetName.exe" }
+          $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
+          if (-not $asset) {
+            $available = ($release.assets | ForEach-Object { $_.name }) -join ", "
+            throw "Asset $assetName not found in latest release. Available assets: $available"
+          }
+          Write-Host "Downloading $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $nosmanPath
+          if (-not $IsWindows) { chmod +x $nosmanPath }
         shell: pwsh
         working-directory: packages-${{ inputs.ref_name }}
 
-      - name: Setup Nodos Workspace (Specific Version)
+      - name: Setup Nodos Workspace
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path -Path ./workspace)) { New-Item -Path ./workspace -ItemType Directory -Force | Out-Null }
+          $nosmanDestination = if ($IsWindows) { "nodos.exe" } else { "nodos" }
+          $nosmanDestinationPath = Join-Path ./workspace $nosmanDestination
+          Copy-Item -Path "${{ env.SYSTEM_NOSMAN_PATH }}" -Destination $nosmanDestinationPath -Force
+          if (-not $IsWindows) { & chmod +x $nosmanDestinationPath }
+          Push-Location ./workspace
+          & ${{ env.SYSTEM_NOSMAN_PATH }} init --reinit
+          if (-not (Test-Path -Path ./Module)) { New-Item -Path ./Module -ItemType Directory -Force | Out-Null }
+          Pop-Location
+        shell: pwsh
+        working-directory: packages-${{ inputs.ref_name }}
+
+      - name: Setup Nodos Workspace (Legacy)
         if: ${{ inputs.nodos_sdk_version != '' }}
         run: |
-          ${{ env.SYSTEM_NOSMAN_PATH }} --workspace ./workspace get --version "${{ inputs.nodos_sdk_version }}" --name nodos -y
+          $ErrorActionPreference = 'Stop'
+          Push-Location ./workspace
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} get --version "${{ inputs.nodos_sdk_version }}" -y --name nodos
+          Copy-Item -Path "${{ env.SYSTEM_NOSMAN_PATH }}" -Destination "./${{ env.NOSMAN_EXECUTABLE_NAME }}" -Force
+          if (-not $IsWindows) { & chmod +x "./${{ env.NOSMAN_EXECUTABLE_NAME }}" }
+          Write-Host "Workspace nosman version:"
+          ./${{ env.NOSMAN_EXECUTABLE_NAME }} --version
+          Pop-Location
         shell: pwsh
         working-directory: packages-${{ inputs.ref_name }}
 
@@ -141,7 +222,7 @@ jobs:
           }
           cd ./packages-repo
           git fetch origin
-          git fetch --tags
+          git fetch --tags --force
           git clean -ffd
           git checkout ${{ github.sha }}
           git reset --hard
@@ -154,7 +235,7 @@ jobs:
           git config user.email "${{ env.GIT_EMAIL }}"
           git config user.name "${{ env.GH_USERNAME }}"
         working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
-  
+
       - name: Update Nosman Cache
         shell: pwsh
         run: |
@@ -167,14 +248,55 @@ jobs:
           ${{inputs.pre_config_command}}
         working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
 
-      - name: Publish Multiple Packages
-        if: ${{ inputs.publish_mode != 'None' }}
+      - name: Publish (If Changed)
+        if: ${{ inputs.publish_mode == 'If Changed' }}
         shell: bash
         run: |
-          python3 -c "$(wget -q -O - https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/publish_multiple_packages.py)" \
-            --packages-json "${{ inputs.packages }}" \
+          packages_args=()
+          if [ -n "${{ inputs.package_names }}" ]; then
+            IFS=';' read -ra pkg_array <<< "${{ inputs.package_names }}"
+            for pkg in "${pkg_array[@]}"; do
+              pkg_trimmed="$(printf '%s' "$pkg" | xargs)"
+              if [ -n "$pkg_trimmed" ]; then
+                packages_args+=(--packages "$pkg_trimmed")
+              fi
+            done
+          fi
+
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
+            --workspace ../../ \
+            publish-batch \
+            --directory . \
+            "${packages_args[@]}" \
+            --version-suffix ".b${{ inputs.build_number }}" \
+            --verbose \
             --tag "${{ inputs.ref_name }}"
-            --build-number "${{ inputs.build_number }}"
+        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+
+      - name: Publish (Force)
+        if: ${{ inputs.publish_mode == 'Force' }}
+        shell: bash
+        run: |
+          packages_args=()
+          if [ -n "${{ inputs.package_names }}" ]; then
+            IFS=';' read -ra pkg_array <<< "${{ inputs.package_names }}"
+            for pkg in "${pkg_array[@]}"; do
+              pkg_trimmed="$(printf '%s' "$pkg" | xargs)"
+              if [ -n "$pkg_trimmed" ]; then
+                packages_args+=(--packages "$pkg_trimmed")
+              fi
+            done
+          fi
+
+          ../../${{ env.NOSMAN_EXECUTABLE_NAME }} \
+            --workspace ../../ \
+            publish-batch \
+            --directory . \
+            "${packages_args[@]}" \
+            --version-suffix ".b${{ inputs.build_number }}" \
+            --verbose \
+            --tag "${{ inputs.ref_name }}" \
+            --publish-all
         working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
 
       - name: Tag
