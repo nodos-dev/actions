@@ -1,0 +1,76 @@
+# Copyright MediaZ Teknoloji A.S. All Rights Reserved.
+
+name: Update Plugin Workflows
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin_build.yml.*'
+      - 'repositories.json'
+      - 'scripts/update_workflows.py'
+      - '.github/workflows/update_workflow.yml'
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'Specific repository to update (owner/repo, optional)'
+        required: false
+        type: string
+      branch:
+        description: 'Specific branch to update (requires repo, optional)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run mode (show what would be done)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  update-workflows:
+    name: Update Plugin Repository Workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout actions repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Update workflows
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+        run: |
+          python3 scripts/update_workflows.py \
+            --config repositories.json \
+            ${{ github.event.inputs.repo && format('--repo {0}', github.event.inputs.repo) || '' }} \
+            ${{ github.event.inputs.branch && format('--branch {0}', github.event.inputs.branch) || '' }} \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Workflow Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            echo "**Mode:** Dry Run (no changes made)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Mode:** Live Update" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ github.event.inputs.repo }}" ]; then
+            echo "**Repository:** ${{ github.event.inputs.repo }}" >> $GITHUB_STEP_SUMMARY
+            if [ -n "${{ github.event.inputs.branch }}" ]; then
+              echo "**Branch:** ${{ github.event.inputs.branch }}" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "**Scope:** All repositories" >> $GITHUB_STEP_SUMMARY
+          fi

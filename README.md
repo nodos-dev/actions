@@ -1,4 +1,20 @@
-# Nodos Action Matrix
+# Nodos Actions Repository
+
+This repository contains GitHub Actions workflows and automation tools for the Nodos project.
+
+## Plugin Workflow Sync System
+
+This repository includes an automated system for syncing build workflow files to all plugin repositories. This ensures that all plugins use consistent, up-to-date workflow configurations.
+
+**Key Features:**
+- Templated workflow files for different branches (dev, nodos-1.3, nodos-1.2)
+- Repository-specific configuration support (build number offsets, platform toggles)
+- Automatic synchronization on template changes
+- Manual sync capability for testing and updates
+
+For detailed information, see [WORKFLOW_SYNC_README.md](WORKFLOW_SYNC_README.md)
+
+## Build Status Matrix
 
 Badges below show the latest GitHub Actions run status for each build workflow on the `dev`, `nodos-1.3`, and `nodos-1.2` branches.
 
