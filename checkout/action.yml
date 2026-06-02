@@ -1,0 +1,71 @@
+name: 'Checkout with parallel submodules'
+description: >-
+  Fast, robust checkout for repositories with heavy submodule trees.
+  Long-path safe (Windows), recovers dirty submodules from failed runs, and
+  fetches submodules in parallel (--jobs) — which actions/checkout still does
+  serially.
+
+inputs:
+  repository:
+    description: 'owner/name of the repository to check out.'
+    required: false
+    default: ${{ github.repository }}
+  ref:
+    description: >-
+      Branch, tag, or commit SHA to check out. Defaults to the SHA that
+      triggered the workflow. Required when checking out a different repository.
+    required: false
+    default: ''
+  path:
+    description: 'Directory to clone into, relative to the workspace.'
+    required: false
+    default: '.'
+  server-url:
+    description: 'Git server base URL.'
+    required: false
+    default: 'https://github.com'
+  fetch-depth:
+    description: 'Shallow clone/fetch depth for the main repo. 0 = full history.'
+    required: false
+    default: '1'
+  submodules:
+    description: "'recursive', 'true' (top-level only), or 'false'."
+    required: false
+    default: 'recursive'
+  shallow-submodules:
+    description: 'Shallow-fetch submodules (--depth 1).'
+    required: false
+    default: 'true'
+  jobs:
+    description: 'Number of parallel submodule fetch jobs (git --jobs).'
+    required: false
+    default: '8'
+  clean:
+    description: 'Hard-reset and clean the working tree and submodules first.'
+    required: false
+    default: 'true'
+  token:
+    description: >-
+      Optional token for HTTPS auth. Leave empty to use the runner's ambient
+      git credentials (e.g. git credential-manager login). Pass a PAT/CI token
+      for cross-repo or private checkouts.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      shell: bash
+      env:
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_REF: ${{ inputs.ref }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_SERVER_URL: ${{ inputs.server-url }}
+        INPUT_FETCH_DEPTH: ${{ inputs.fetch-depth }}
+        INPUT_SUBMODULES: ${{ inputs.submodules }}
+        INPUT_SHALLOW_SUBMODULES: ${{ inputs.shallow-submodules }}
+        INPUT_JOBS: ${{ inputs.jobs }}
+        INPUT_CLEAN: ${{ inputs.clean }}
+        INPUT_TOKEN: ${{ inputs.token }}
+      run: bash "$GITHUB_ACTION_PATH/checkout.sh"
