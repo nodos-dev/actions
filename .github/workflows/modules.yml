@@ -161,6 +161,8 @@ jobs:
           ref: ${{ github.sha }}
           path: modules-${{ inputs.ref_name }}/workspace/Module/modules-repo
           jobs: 8
+          # Full history + tags for changelog generation.
+          fetch-depth: 0
 
       - name: Setup Git
         run: |
