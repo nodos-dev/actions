@@ -129,21 +129,11 @@ jobs:
         working-directory: samples-${{ inputs.ref_name }}
 
       - name: Checkout
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not (Test-Path -Path ./samples-repo)) {
-            git clone --branch ${{ inputs.ref_name }} --depth 1 https://github.com/${{ github.repository }}.git --recurse-submodule --shallow-submodules ./samples-repo
-          }
-          cd ./samples-repo
-          git fetch origin
-          git fetch --tags
-          git clean -ffd
-          git checkout ${{ github.sha }}
-          git reset --hard
-          git submodule update --force --recursive --init
-          git status
-        working-directory: samples-${{ inputs.ref_name }}/workspace/Module
+        uses: nodos-dev/actions/checkout@main
+        with:
+          ref: ${{ github.sha }}
+          path: samples-${{ inputs.ref_name }}/workspace/Module/samples-repo
+          jobs: 8
 
       - name: Setup Git
         run: |
