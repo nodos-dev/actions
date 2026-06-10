@@ -73,19 +73,24 @@ jobs:
     runs-on: self-hosted
     outputs:
       runner-list: ${{ steps.prepare-step.outputs.runner-list }}
+      safe-ref: ${{ steps.prepare-step.outputs.safe-ref }}
     steps:
       - name: Prepare Runner List
         id: prepare-step
         shell: bash
+        env:
+          REF_NAME: ${{ inputs.ref_name }}
         run: |
           runner_list=$(python3 -c "$(curl -fsSL https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
             --workflow-input-linux ${{ inputs.linux }} \
             --workflow-input-windows ${{ inputs.windows }} \
             --sign ${{ inputs.sign_binaries }} \
-            --ref-name ${{ inputs.ref_name }} \
+            --ref-name "$REF_NAME" \
             --event-name "workflow_call")
           echo Runners: $runner_list
           echo "runner-list=$runner_list" >> $GITHUB_OUTPUT
+          # Branch names may contain slashes; sanitize for use in paths and tags.
+          echo "safe-ref=${REF_NAME//\//-}" >> $GITHUB_OUTPUT
 
   build:
     strategy:
@@ -102,6 +107,7 @@ jobs:
       GH_TOKEN: ${{ secrets.CI_TOKEN }}
       NODOS_STORE_ACCESS_TOKEN: ${{ secrets.NODOS_STORE_ACCESS_TOKEN }}
       RUST_BACKTRACE: 1
+      SAFE_REF: ${{ needs.prepare-strategy.outputs.safe-ref }}
 
     steps:
       - name: Setup Environment Variables
@@ -125,12 +131,12 @@ jobs:
         shell: pwsh
         if: ${{ inputs.clean }}
         run: |
-          if (Test-Path -Path ./plugins-${{ inputs.ref_name }}) { Remove-Item -Path ./plugins-${{ inputs.ref_name }} -Recurse -Force }
+          if (Test-Path -Path ./plugins-${{ env.SAFE_REF }}) { Remove-Item -Path ./plugins-${{ env.SAFE_REF }} -Recurse -Force }
 
       - name: Setup Work Folder
         shell: pwsh
         run: |
-          if (-not (Test-Path -Path ./plugins-${{ inputs.ref_name }})) { New-Item -Path ./plugins-${{ inputs.ref_name }} -ItemType Directory -Force }
+          if (-not (Test-Path -Path ./plugins-${{ env.SAFE_REF }})) { New-Item -Path ./plugins-${{ env.SAFE_REF }} -ItemType Directory -Force }
 
       - name: Ensure Nosman
         run: |
@@ -194,7 +200,7 @@ jobs:
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $nosmanPath
           if (-not $IsWindows) { chmod +x $nosmanPath }
         shell: pwsh
-        working-directory: plugins-${{ inputs.ref_name }}
+        working-directory: plugins-${{ env.SAFE_REF }}
 
       - name: Setup Nodos Workspace
         run: |
@@ -210,7 +216,7 @@ jobs:
           if (-not (Test-Path -Path ./Module)) { New-Item -Path ./Module -ItemType Directory -Force | Out-Null }
           Pop-Location
         shell: pwsh
-        working-directory: plugins-${{ inputs.ref_name }}
+        working-directory: plugins-${{ env.SAFE_REF }}
 
       - name: Setup Nodos Workspace (Legacy)
         if: ${{ inputs.nodos_version != '' }}
@@ -224,13 +230,13 @@ jobs:
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} --version
           Pop-Location
         shell: pwsh
-        working-directory: plugins-${{ inputs.ref_name }}
+        working-directory: plugins-${{ env.SAFE_REF }}
 
       - name: Checkout
         uses: nodos-dev/actions/checkout@main
         with:
           ref: ${{ github.sha }}
-          path: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+          path: plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo
           jobs: 8
           # Full history + tags for changelog generation.
           fetch-depth: 0
@@ -239,13 +245,13 @@ jobs:
         run: |
           git config user.email "${{ env.GIT_EMAIL }}"
           git config user.name "${{ env.GH_USERNAME }}"
-        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo
   
       - name: Update Nosman Cache
         shell: pwsh
         run: |
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
-        working-directory: plugins-${{ inputs.ref_name }}/workspace
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace
 
       - name: Resolve Plugin Directories
         if: ${{ inputs.plugin_names != '' && inputs.nodos_version == '' }}
@@ -277,13 +283,13 @@ jobs:
           }
           $moduleDirsValue = ($moduleDirs | Sort-Object -Unique) -join ';'
           "MODULE_DIRS=$moduleDirsValue" >> $env:GITHUB_ENV
-        working-directory: plugins-${{ inputs.ref_name }}/workspace
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace
 
       - name: Pre-Configure
         shell: pwsh
         run: |
           ${{inputs.pre_config_command}}
-        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo
 
       - name: Configure
         shell: pwsh
@@ -297,7 +303,7 @@ jobs:
           }
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev gen --language-tool cpp/cmake --project-folder ../Project @pluginArgs -- -DCMAKE_BUILD_TYPE=Release
           if ($LASTEXITCODE -ne 0) { throw "Configure failed with exit code $LASTEXITCODE" }
-        working-directory: plugins-${{ inputs.ref_name }}/workspace
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace
 
       - name: Build
         shell: pwsh
@@ -305,7 +311,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} dev build --language-tool cpp/cmake --project-folder ../Project --config Release
           if ($LASTEXITCODE -ne 0) { throw "Build failed with exit code $LASTEXITCODE" }
-        working-directory: plugins-${{ inputs.ref_name }}/workspace
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace
 
       - name: Regression Tests
         shell: pwsh
@@ -340,13 +346,13 @@ jobs:
             Remove-NetFirewallRule -DisplayName "CI Allow Nodos Outbound" -ErrorAction SilentlyContinue
             Write-Host "Firewall rules cleaned up"
           }
-        working-directory: plugins-${{ inputs.ref_name }}/workspace
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace
 
       - name: Sign Binaries
         if: ${{ inputs.publish_mode != 'None' && inputs.sign_binaries }}
         run: |
           cd $MEDIAZ_SCRIPTS_DIR
-          python sign_module.py "${{ github.workspace }}/plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo"
+          python sign_module.py "${{ github.workspace }}/plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo"
         shell: bash
 
       - name: Upload PDBs
@@ -361,7 +367,7 @@ jobs:
               sentry-cli debug-files upload -o mediaz-teknoloji -p nodos $_.FullName
             }
           }
-        working-directory: plugins-${{ inputs.ref_name }}/
+        working-directory: plugins-${{ env.SAFE_REF }}/
 
       - name: Publish (If Changed)
         if: ${{ inputs.publish_mode == 'If Changed' }}
@@ -385,8 +391,8 @@ jobs:
             "${packages_args[@]}" \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --tag "${{ inputs.ref_name }}"
-        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+            --tag "$SAFE_REF"
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo
 
       - name: Publish (Force)
         if: ${{ inputs.publish_mode == 'Force' }}
@@ -410,7 +416,7 @@ jobs:
             "${packages_args[@]}" \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --tag "${{ inputs.ref_name }}" \
+            --tag "$SAFE_REF" \
             --publish-all
-        working-directory: plugins-${{ inputs.ref_name }}/workspace/Module/plugins-repo
+        working-directory: plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo
       

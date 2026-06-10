@@ -60,18 +60,23 @@ jobs:
     runs-on: self-hosted
     outputs:
       runner-list: ${{ steps.prepare-step.outputs.runner-list }}
+      safe-ref: ${{ steps.prepare-step.outputs.safe-ref }}
     steps:
       - name: Prepare Runner List
         id: prepare-step
         shell: bash
+        env:
+          REF_NAME: ${{ inputs.ref_name }}
         run: |
           runner_list=$(python3 -c "$(curl -fsSL https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
             --workflow-input-linux ${{ inputs.linux }} \
             --workflow-input-windows ${{ inputs.windows }} \
-            --ref-name ${{ inputs.ref_name }} \
+            --ref-name "$REF_NAME" \
             --event-name "workflow_call")
           echo Runners: $runner_list
           echo "runner-list=$runner_list" >> $GITHUB_OUTPUT
+          # Branch names may contain slashes; sanitize for use in paths and tags.
+          echo "safe-ref=${REF_NAME//\//-}" >> $GITHUB_OUTPUT
 
   build:
     strategy:
@@ -88,6 +93,7 @@ jobs:
       GH_TOKEN: ${{ secrets.CI_TOKEN }}
       NODOS_STORE_ACCESS_TOKEN: ${{ secrets.NODOS_STORE_ACCESS_TOKEN }}
       RUST_BACKTRACE: 1
+      SAFE_REF: ${{ needs.prepare-strategy.outputs.safe-ref }}
 
     steps:
       - name: Setup Environment Variables
@@ -95,11 +101,11 @@ jobs:
           if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
             echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-linux" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${SAFE_REF}-linux" >> $GITHUB_ENV
           else
             echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
             echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
-            echo "TAG_NAME_PREFIX=build.${{ inputs.ref_name }}-windows" >> $GITHUB_ENV
+            echo "TAG_NAME_PREFIX=build.${SAFE_REF}-windows" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -113,12 +119,12 @@ jobs:
         shell: pwsh
         if: ${{ inputs.clean }}
         run: |
-          if (Test-Path -Path ./packages-${{ inputs.ref_name }}) { Remove-Item -Path ./packages-${{ inputs.ref_name }} -Recurse -Force }
+          if (Test-Path -Path ./packages-${{ env.SAFE_REF }}) { Remove-Item -Path ./packages-${{ env.SAFE_REF }} -Recurse -Force }
 
       - name: Setup Work Folder
         shell: pwsh
         run: |
-          if (-not (Test-Path -Path ./packages-${{ inputs.ref_name }})) { New-Item -Path ./packages-${{ inputs.ref_name }} -ItemType Directory -Force }
+          if (-not (Test-Path -Path ./packages-${{ env.SAFE_REF }})) { New-Item -Path ./packages-${{ env.SAFE_REF }} -ItemType Directory -Force }
 
       - name: Ensure Nosman
         run: |
@@ -182,7 +188,7 @@ jobs:
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $nosmanPath
           if (-not $IsWindows) { chmod +x $nosmanPath }
         shell: pwsh
-        working-directory: packages-${{ inputs.ref_name }}
+        working-directory: packages-${{ env.SAFE_REF }}
 
       - name: Setup Nodos Workspace
         run: |
@@ -197,7 +203,7 @@ jobs:
           if (-not (Test-Path -Path ./Module)) { New-Item -Path ./Module -ItemType Directory -Force | Out-Null }
           Pop-Location
         shell: pwsh
-        working-directory: packages-${{ inputs.ref_name }}
+        working-directory: packages-${{ env.SAFE_REF }}
 
       - name: Setup Nodos Workspace (Legacy)
         if: ${{ inputs.nodos_sdk_version != '' }}
@@ -211,13 +217,13 @@ jobs:
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} --version
           Pop-Location
         shell: pwsh
-        working-directory: packages-${{ inputs.ref_name }}
+        working-directory: packages-${{ env.SAFE_REF }}
 
       - name: Checkout
         uses: nodos-dev/actions/checkout@main
         with:
           ref: ${{ github.sha }}
-          path: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+          path: packages-${{ env.SAFE_REF }}/workspace/Module/packages-repo
           jobs: 8
           # Full history + tags for changelog generation.
           fetch-depth: 0
@@ -226,19 +232,19 @@ jobs:
         run: |
           git config user.email "${{ env.GIT_EMAIL }}"
           git config user.name "${{ env.GH_USERNAME }}"
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+        working-directory: packages-${{ env.SAFE_REF }}/workspace/Module/packages-repo
 
       - name: Update Nosman Cache
         shell: pwsh
         run: |
           ./${{ env.NOSMAN_EXECUTABLE_NAME }} rescan --fetch-index
-        working-directory: packages-${{ inputs.ref_name }}/workspace
+        working-directory: packages-${{ env.SAFE_REF }}/workspace
 
       - name: Pre-Configure
         shell: pwsh
         run: |
           ${{inputs.pre_config_command}}
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+        working-directory: packages-${{ env.SAFE_REF }}/workspace/Module/packages-repo
 
       - name: Publish (If Changed)
         if: ${{ inputs.publish_mode == 'If Changed' }}
@@ -262,8 +268,8 @@ jobs:
             "${packages_args[@]}" \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --tag "${{ inputs.ref_name }}"
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+            --tag "$SAFE_REF"
+        working-directory: packages-${{ env.SAFE_REF }}/workspace/Module/packages-repo
 
       - name: Publish (Force)
         if: ${{ inputs.publish_mode == 'Force' }}
@@ -287,13 +293,13 @@ jobs:
             "${packages_args[@]}" \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --tag "${{ inputs.ref_name }}" \
+            --tag "$SAFE_REF" \
             --publish-all
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+        working-directory: packages-${{ env.SAFE_REF }}/workspace/Module/packages-repo
 
       - name: Tag
         if: ${{ inputs.publish_mode != 'None' }}
         run: |
           git tag -a "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}" -m "Build ${{ inputs.ref_name }}-${{ inputs.build_number }}"
           git push origin "${{ env.TAG_NAME_PREFIX }}-${{ inputs.build_number }}"
-        working-directory: packages-${{ inputs.ref_name }}/workspace/Module/packages-repo
+        working-directory: packages-${{ env.SAFE_REF }}/workspace/Module/packages-repo
