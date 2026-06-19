@@ -66,6 +66,11 @@ on:
         required: false
         default: false
         type: boolean
+      visibility:
+        description: "Visibility for packages created on first publish: public or private"
+        required: false
+        default: 'public'
+        type: string
 
 jobs:
   prepare-strategy:
@@ -390,6 +395,7 @@ jobs:
             --directory . \
             "${packages_args[@]}" \
             --version-suffix ".b${{ inputs.build_number }}" \
+            --visibility "${{ inputs.visibility }}" \
             --verbose \
             --tag "$SAFE_REF"
         working-directory: plugins-${{ env.SAFE_REF }}/workspace/Module/plugins-repo
@@ -415,6 +421,7 @@ jobs:
             --directory . \
             "${packages_args[@]}" \
             --version-suffix ".b${{ inputs.build_number }}" \
+            --visibility "${{ inputs.visibility }}" \
             --verbose \
             --tag "$SAFE_REF" \
             --publish-all
