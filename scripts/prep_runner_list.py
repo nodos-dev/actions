@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--ref-name", required=True, help="GitHub ref name (e.g., branch or tag name)")
     parser.add_argument("--workflow-input-linux", type=str_to_bool, nargs="?", default=False, help="Enable Linux builds (true/false or flag)")
     parser.add_argument("--workflow-input-windows", type=str_to_bool, nargs="?", default=False, help="Enable Windows builds (true/false or flag)")
+    parser.add_argument("--workflow-input-macos", type=str_to_bool, nargs="?", default=False, help="Enable macOS (Apple Silicon) builds (true/false or flag)")
     parser.add_argument("--sign", type=str_to_bool, nargs="?", default=False, help="Enable signing (Windows only, true/false or flag)")
     parser.add_argument("--push-event-defaults", type=str, help="JSON string with push event defaults")
     parser.add_argument("--arch", type=str, help="Target build architecture", default="X64")
@@ -30,6 +31,7 @@ def main():
     ref_name = args.ref_name
     workflow_input_linux = args.workflow_input_linux
     workflow_input_windows = args.workflow_input_windows
+    workflow_input_macos = args.workflow_input_macos
     architecture = args.arch
     sign = args.sign
     push_event_defaults = args.push_event_defaults
@@ -45,6 +47,8 @@ def main():
             if sign:
                 win_labels.append("signer")
             runner_list.append(win_labels)
+        if workflow_input_macos:
+            runner_list.append(["macOS", "ARM64"])
     elif event_name == "push":
         if push_event_defaults:
             push_event_defaults = json.loads(push_event_defaults)
@@ -55,6 +59,8 @@ def main():
                 if push_event_defaults.get("sign", False):
                     win_labels.append("signer")
                 runner_list.append(win_labels)
+            if push_event_defaults.get("macos", False):
+                runner_list.append(["macOS", "ARM64"])
 
     # Check if ref_name is supported, with prefix matching for versioned branches
     if ref_name not in NODOS_RUNNER_SUPPORTED_REFS:
