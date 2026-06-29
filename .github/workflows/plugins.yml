@@ -61,6 +61,11 @@ on:
         required: false
         default: true
         type: boolean
+      macos:
+        description: 'Release for macOS (Apple Silicon)'
+        required: false
+        default: false
+        type: boolean
       run_tests:
         description: 'Run tests'
         required: false
@@ -89,6 +94,7 @@ jobs:
           runner_list=$(python3 -c "$(curl -fsSL https://raw.githubusercontent.com/nodos-dev/actions/refs/heads/main/scripts/prep_runner_list.py)" \
             --workflow-input-linux ${{ inputs.linux }} \
             --workflow-input-windows ${{ inputs.windows }} \
+            --workflow-input-macos ${{ inputs.macos }} \
             --sign ${{ inputs.sign_binaries }} \
             --ref-name "$REF_NAME" \
             --event-name "workflow_call")
