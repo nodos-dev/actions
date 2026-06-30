@@ -73,7 +73,7 @@ echo "==> Checking out ${REPO}@${REF} into '${DEST}'"
 # ---- 2) Clone once, reuse on later runs -------------------------------------
 if [ ! -d "${DEST}/.git" ]; then
   echo "==> Cloning (fresh) ${URL}"
-  git "${AUTH_ARGS[@]}" clone "${DEPTH_ARGS[@]}" "${URL}" "${DEST}"
+  git ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} clone ${DEPTH_ARGS[@]+"${DEPTH_ARGS[@]}"} "${URL}" "${DEST}"
 fi
 cd "${DEST}"
 git config core.longpaths true
@@ -84,10 +84,10 @@ git config core.longpaths true
 # branch. Fall back to fetching everything if the server rejects a direct ref
 # (e.g. a SHA on a server without allowReachableSHA1InWant).
 echo "==> Fetching ${REF}"
-if git "${AUTH_ARGS[@]}" fetch "${DEPTH_ARGS[@]}" --force --tags origin "${REF}"; then
+if git ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} fetch ${DEPTH_ARGS[@]+"${DEPTH_ARGS[@]}"} --force --tags origin "${REF}"; then
   TARGET="FETCH_HEAD"
 else
-  git "${AUTH_ARGS[@]}" fetch "${DEPTH_ARGS[@]}" --force --tags origin
+  git ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} fetch ${DEPTH_ARGS[@]+"${DEPTH_ARGS[@]}"} --force --tags origin
   TARGET="${REF}"
 fi
 
@@ -108,11 +108,11 @@ git reset --hard "${TARGET}"
 if [ "$SUBMODULES" != "false" ]; then
   echo "==> Updating submodules (jobs=${JOBS}, recursive=$([ "$SUBMODULES" = recursive ] && echo yes || echo no), shallow=${SHALLOW_SUB})"
   git submodule sync --recursive
-  git "${AUTH_ARGS[@]}" \
+  git ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} \
     -c "submodule.fetchJobs=${JOBS}" \
     -c "fetch.parallel=${JOBS}" \
     submodule update --init --force --jobs "${JOBS}" \
-    "${RECURSE_ARGS[@]}" "${SUB_DEPTH_ARGS[@]}"
+    ${RECURSE_ARGS[@]+"${RECURSE_ARGS[@]}"} ${SUB_DEPTH_ARGS[@]+"${SUB_DEPTH_ARGS[@]}"}
 fi
 
 echo "==> Done. Status:"
