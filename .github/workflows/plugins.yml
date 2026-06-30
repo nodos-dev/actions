@@ -123,12 +123,10 @@ jobs:
     steps:
       - name: Setup Environment Variables
         run: |
-          if [ "${{ matrix.runner[0] }}" == "Linux" ]; then
-            echo "SYSTEM_NOSMAN_PATH=~/Tools/nodos/nodos" >> $GITHUB_ENV
-            echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
-          else
-            echo "SYSTEM_NOSMAN_PATH=C:/Tools/nodos.exe" >> $GITHUB_ENV
+          if [ "${{ matrix.runner[0] }}" == "Windows" ]; then
             echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
+          else
+            echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -152,64 +150,22 @@ jobs:
       - name: Ensure Nosman
         run: |
           $ErrorActionPreference = 'Stop'
-          $nosmanPath = "${{ env.SYSTEM_NOSMAN_PATH }}"
-          $nosmanDir = Split-Path -Parent $nosmanPath
-          if (-not (Test-Path -Path $nosmanDir)) { New-Item -Path $nosmanDir -ItemType Directory -Force | Out-Null }
+          # nosman is published to crates.io; install from there so every
+          # platform (incl. macOS) gets a native binary without per-OS assets.
+          cargo install nosman
+          if ($LASTEXITCODE -ne 0) { throw "cargo install nosman failed with exit code $LASTEXITCODE" }
 
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/nodos-dev/workspace/releases/latest" -Headers @{ "User-Agent" = "nodos-ci" }
-          if (-not $release.tag_name) { throw "Latest release tag not found." }
-          $latestVersion = $release.tag_name
-          if ($latestVersion -match "(\d+\.\d+\.\d+)") { $latestVersion = $Matches[1] }
+          $binName = if ($IsWindows) { "nosman.exe" } else { "nosman" }
+          $cargoBin =
+            if ($env:CARGO_INSTALL_ROOT) { Join-Path $env:CARGO_INSTALL_ROOT "bin" }
+            elseif ($env:CARGO_HOME) { Join-Path $env:CARGO_HOME "bin" }
+            else { Join-Path $HOME ".cargo/bin" }
+          $nosmanPath = Join-Path $cargoBin $binName
+          if (-not (Test-Path -Path $nosmanPath)) { throw "nosman not found at $nosmanPath after cargo install" }
 
-          $currentVersion = $null
-          if (Test-Path -Path $nosmanPath) {
-            $versionOutput = & $nosmanPath --version 2>$null
-            if ($versionOutput -match "(\d+\.\d+\.\d+)") { $currentVersion = $Matches[1] }
-          }
-
-          function Compare-SemVer([string]$a, [string]$b) {
-            $aParts = $a.Split('.')
-            $bParts = $b.Split('.')
-            for ($i = 0; $i -lt 3; $i++) {
-              $aVal = [int]($aParts[$i] ?? 0)
-              $bVal = [int]($bParts[$i] ?? 0)
-              if ($aVal -lt $bVal) { return -1 }
-              if ($aVal -gt $bVal) { return 1 }
-            }
-            return 0
-          }
-
-          $needsUpdate = $true
-          if ($currentVersion) {
-            if ((Compare-SemVer $currentVersion $latestVersion) -ge 0) { $needsUpdate = $false }
-          }
-
-          if (-not $needsUpdate) {
-            Write-Host "nosman is up to date ($currentVersion)."
-            exit 0
-          }
-
-          $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
-          $archToken = switch ($arch) {
-            ([System.Runtime.InteropServices.Architecture]::X64)   { "x86_64" }
-            ([System.Runtime.InteropServices.Architecture]::Arm64) { "aarch64" }
-            default { "" }
-          }
-          if ([string]::IsNullOrEmpty($archToken)) {
-            throw "Unsupported architecture for nosman download: $arch"
-          }
-
-          $osToken = if ($IsWindows) { "windows" } else { "linux" }
-          $assetName = "nosman-$osToken-$archToken"
-          if ($IsWindows) { $assetName = "$assetName.exe" }
-          $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
-          if (-not $asset) {
-            $available = ($release.assets | ForEach-Object { $_.name }) -join ", "
-            throw "Asset $assetName not found in latest release. Available assets: $available"
-          }
-          Write-Host "Downloading $($asset.browser_download_url)"
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $nosmanPath
-          if (-not $IsWindows) { chmod +x $nosmanPath }
+          "SYSTEM_NOSMAN_PATH=$nosmanPath" >> $env:GITHUB_ENV
+          Write-Host "Using nosman at $nosmanPath"
+          & $nosmanPath --version
         shell: pwsh
         working-directory: plugins-${{ env.SAFE_REF }}
 
