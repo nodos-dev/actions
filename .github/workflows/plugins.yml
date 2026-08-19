@@ -76,6 +76,11 @@ on:
         required: false
         default: 'public'
         type: string
+      upload_pdbs:
+        description: 'Upload PDBs to Sentry'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   prepare-strategy:
@@ -323,7 +328,7 @@ jobs:
         shell: bash
 
       - name: Upload PDBs
-        if: ${{ inputs.publish_mode != 'None' && matrix.runner[0] == 'Windows'}}
+        if: ${{ inputs.publish_mode != 'None' && inputs.upload_pdbs && matrix.runner[0] == 'Windows'}}
         shell: pwsh
         run: |
           if ([string]::IsNullOrEmpty("${{ secrets.SENTRY_TOKEN }}")) {
