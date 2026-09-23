@@ -27,7 +27,7 @@ on:
         default: ''
         type: string
       nodos_version:
-        description: 'Legacy Nodos version (nosman get --version)'
+        description: 'Nodos version for pre-1.4 plugins, whose builds need the engine in the workspace (nosman get --version). Empty or 1.4+ builds against the SDK the manifests declare.'
         required: false
         default: ''
         type: string
@@ -127,12 +127,28 @@ jobs:
 
     steps:
       - name: Setup Environment Variables
+        env:
+          NODOS_VERSION: ${{ inputs.nodos_version }}
         run: |
           if [ "${{ matrix.runner[0] }}" == "Windows" ]; then
             echo "NOSMAN_EXECUTABLE_NAME=nodos.exe" >> $GITHUB_ENV
           else
             echo "NOSMAN_EXECUTABLE_NAME=nodos" >> $GITHUB_ENV
           fi
+          # Only plugins older than 1.4 need the engine in the workspace.
+          legacy=false
+          if [ -n "$NODOS_VERSION" ]; then
+            if [[ ! "$NODOS_VERSION" =~ ^([0-9]+)\.([0-9]+) ]]; then
+              echo "::error::nodos_version must start with major.minor, got '$NODOS_VERSION'"
+              exit 1
+            fi
+            major=${BASH_REMATCH[1]}
+            minor=${BASH_REMATCH[2]}
+            if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 4 ]; }; then
+              legacy=true
+            fi
+          fi
+          echo "LEGACY_WORKSPACE=$legacy" >> $GITHUB_ENV
         shell: bash
 
       - name: Update Git Credentials
@@ -191,7 +207,7 @@ jobs:
         working-directory: plugins-${{ env.SAFE_REF }}
 
       - name: Setup Nodos Workspace (Legacy)
-        if: ${{ inputs.nodos_version != '' }}
+        if: ${{ env.LEGACY_WORKSPACE == 'true' }}
         run: |
           $ErrorActionPreference = 'Stop'
           Push-Location ./workspace
@@ -226,7 +242,7 @@ jobs:
         working-directory: plugins-${{ env.SAFE_REF }}/workspace
 
       - name: Resolve Plugin Directories
-        if: ${{ inputs.plugin_names != '' && inputs.nodos_version == '' }}
+        if: ${{ inputs.plugin_names != '' && env.LEGACY_WORKSPACE != 'true' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -267,7 +283,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if ("${{ inputs.plugin_names }}" -ne "" -and [string]::IsNullOrEmpty("${{inputs.nodos_version}}")) {
+          if ("${{ inputs.plugin_names }}" -ne "" -and $env:LEGACY_WORKSPACE -ne 'true') {
             if ([string]::IsNullOrEmpty($env:MODULE_DIRS)) { throw "MODULE_DIRS is not set for plugin build." }
             $pluginArgs = @("--plugin-dirs", $env:MODULE_DIRS)
           } else {
