@@ -183,8 +183,6 @@ jobs:
             --path . \
             --version-suffix ".b${{ inputs.build_number }}" \
             --verbose \
-            --publisher-name "${{ env.GH_USERNAME }}" \
-            --publisher-email "${{ env.GIT_EMAIL }}" \
             --tag "$SAFE_REF"
         working-directory: samples-${{ env.SAFE_REF }}/workspace/Module/samples-repo
 
