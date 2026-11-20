@@ -42,6 +42,12 @@ on:
         required: false
         default: true
         type: boolean
+    secrets:
+      CI_TOKEN:
+        required: false
+      NODOS_STORE_ACCESS_TOKEN:
+        required: false
+        description: 'Access token for Nodos Store authentication (publishing)'
 
 jobs:
   prepare-strategy:
@@ -80,6 +86,7 @@ jobs:
       GH_USERNAME: "nodos-bot"
       GIT_EMAIL: "bot@nodos.dev"
       GH_TOKEN: ${{ secrets.CI_TOKEN }}
+      NODOS_STORE_ACCESS_TOKEN: ${{ secrets.NODOS_STORE_ACCESS_TOKEN }}
       RUST_BACKTRACE: 1
       SAFE_REF: ${{ needs.prepare-strategy.outputs.safe-ref }}
 
